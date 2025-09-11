@@ -15,7 +15,8 @@ import {
   RotateCcw,
   Menu,
   X,
-  LogOut
+  LogOut,
+  Building
 } from 'lucide-react';
 import { cn } from '../components/ui/utils';
 import { Button } from '../components/ui/button';
@@ -80,14 +81,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       { href: '/dashboard/approvals', label: 'Approvals', icon: CheckSquare, roles: ['Manager', 'Admin'] },
       { href: '/dashboard/payroll', label: 'Payroll', icon: DollarSign, roles: ['Manager', 'Admin'] },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['Manager', 'Admin'] },
+      { href: '/dashboard/shift-management', label: 'Shift Management', icon: Calendar, roles: ['Manager', 'Admin'] },
     ];
 
     const adminItems = [
       { href: '/dashboard/employees', label: 'Employee Management', icon: Users, roles: ['Admin'] },
-      { href: '/dashboard/shift-management', label: 'Shift Management', icon: Calendar, roles: ['Admin'] },
       { href: '/dashboard/goals', label: 'Goal Management', icon: CheckSquare, roles: ['Admin', 'Manager'] },
-      { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['Admin'] },
-    ];
+      { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['Admin'] }, 
+      { href: '/dashboard/employeees', label: 'Employee Create', icon: Users, roles: ['Admin'] },
+  { href: '/dashboard/departments', label: 'Departments & Positions', icon: Building, roles: ['Admin'] },
+        ];
+ 
 
     const notificationItem = [
       { href: '/dashboard/notifications', label: 'Notifications', icon: Bell, roles: ['Employee', 'Manager', 'Admin'] },

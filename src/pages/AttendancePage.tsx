@@ -105,6 +105,7 @@ export const AttendancePage: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           employeeId: user.employeeId,
+          managerId: user.managerId,
           clockIn: now.toISOString(),
           status: 'present'
         })

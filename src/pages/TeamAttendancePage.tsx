@@ -66,9 +66,9 @@ const DailyAttendanceView = () => {
 
   // Fetch team members managed by this manager
   useEffect(() => {
-    fetch(`http://localhost:5000/workDay/employees/manager/{user.employeeId}`)
+    fetch(`http://localhost:5000/workDay/employees/manager/${user.employeeId}`)
       .then(res => res.json())
-      .then((data)=>{setTeamMembers([data]);
+      .then((data)=>{setTeamMembers(data);
         console.log(data);
       });
   }, [user.employeeId]);
@@ -78,7 +78,7 @@ const DailyAttendanceView = () => {
     fetch(`http://localhost:5000/workDay/shifts/date/${today}`)
       .then(res => res.json())
       .then((data)=>{setShiftSchedules(data);
-        console.log(data);
+        
       });
   }, [today]);
 
@@ -87,7 +87,7 @@ const DailyAttendanceView = () => {
     fetch(`http://localhost:5000/workDay/timeEntries/all`)
       .then(res => res.json())
       .then((data)=>{setAttendanceRecords(data);
-        console.log(data);
+       
       });
   }, []);
 
@@ -96,7 +96,7 @@ const DailyAttendanceView = () => {
     fetch(`http://localhost:5000/workDay/leaves`)
       .then(res => res.json())
       .then(data => {
-        console.log(data);
+        
         setLeaveRequests(data.filter((leave: any) =>
           leave.status === "Approved" &&
           new Date(leave.startDate) <= new Date(today) &&
@@ -107,18 +107,25 @@ const DailyAttendanceView = () => {
 
   // Calculate today's status for each team member
   useEffect(() => {
-      const statusArr = teamMembers.map(member => {
-      // Find today's shift for member
-      const shift = shiftSchedules.find((s: any) => s.employeeId === member._id && s.date.split('T')[0] === today);
-      // Find attendance record for member
-      console.log(shift);
-      const attendance = attendanceRecords.find((a: any) => a.employeeId._id === member._id && a.clockIn && a.clockIn.split('T')[0] === today);
-      console.log(attendance);
-      // Find leave request for member
-      const leave = leaveRequests.find((l: any) => l.employeeId._id === member._id);
-      console.log(leave);
+  if (!teamMembers.length) return;
+  const today = new Date().toISOString().split('T')[0];
 
-      if (!shift) {
+  Promise.all(
+    teamMembers.map(async (member) => {
+      // Fetch today's shift for this employee
+      const shiftRes = await fetch(`http://localhost:5000/workDay/shifts/employee/${member._id}/date/${today}`);
+      const shifts = await shiftRes.json();
+
+      // Fetch today's attendance for this employee
+      const attRes = await fetch(`http://localhost:5000/workDay/timeentries/employee/${member._id}/date/${today}`);
+      const attendance = await attRes.json();
+
+      // Fetch approved leave request for this employee for today
+      const leaveRes = await fetch(`http://localhost:5000/workDay/leaves/employee/${member._id}/date/${today}`);
+      const leaves = await leaveRes.json();
+
+      // Determine status
+      if (!shifts.length) {
         return {
           ...member,
           status: "No Shift Today",
@@ -132,18 +139,18 @@ const DailyAttendanceView = () => {
         };
       }
 
-      if (!attendance) {
-        if (leave) {
+      if (!attendance.length) {
+        if (leaves.length) {
           return {
             ...member,
             status: "On Leave",
-            details: leave.reason,
+            details: leaves[0].reason,
             department: member.department?.name || "",
             clockIn: null,
             clockOut: null,
             totalHours: 0,
             location: "",
-            notes: leave.reason
+            notes: leaves[0].reason
           };
         }
         return {
@@ -160,8 +167,9 @@ const DailyAttendanceView = () => {
       }
 
       // Check for late arrival
-      const scheduledStart = new Date(shift.startTime);
-      const actualClockIn = new Date(attendance.clockIn);
+      const shift = shifts[0];
+      const scheduledStart = new Date(`${today}T${shift.startTime}`);
+      const actualClockIn = new Date(attendance[0].clockIn);
       let status = "Present";
       let details = "";
       if (actualClockIn > scheduledStart) {
@@ -170,20 +178,42 @@ const DailyAttendanceView = () => {
         details = `Late by ${lateMinutes} min`;
       }
 
+      // Calculate total hours if multiple attendance records
+      let totalHours = 0;
+      let clockIn: Date | null = null;
+      let clockOut: Date | null = null;
+
+      if (attendance.length) {
+        // Sum all hours and get earliest clockIn/latest clockOut
+        // Find the earliest clockIn in the attendance array
+        clockIn = attendance
+          .map((entry: any) => entry.clockIn)
+          .filter(Boolean)
+          .map((dt: string) => new Date(dt))
+          .sort((a, b) => a.getTime() - b.getTime())[0] || null;
+
+        clockOut = attendance[0].clockOut ? new Date(attendance[0].clockOut) : null;
+
+        attendance.forEach((entry: any) => {
+          if (entry.totalHours) totalHours += entry.totalHours;
+          if (entry.clockOut && (!clockOut || new Date(entry.clockOut) > clockOut)) clockOut = new Date(entry.clockOut);
+        });
+      }
+
       return {
         ...member,
         status,
         details,
         department: member.department?.name || "",
-        clockIn: actualClockIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        clockOut: attendance.clockOut ? new Date(attendance.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
-        totalHours: attendance.totalHours || 0,
-        location: attendance.location || "",
-        notes: attendance.notes || ""
+        clockIn: clockIn ? clockIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+        clockOut: clockOut ? clockOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+        totalHours: Math.round(totalHours * 1000) / 1000,
+        location: attendance[0]?.location || "",
+        notes: attendance[0]?.notes || ""
       };
-    });
-    setTodayStatus([statusArr]);
-  }, [teamMembers, shiftSchedules, attendanceRecords, leaveRequests, today]);
+    })
+  ).then(statusArr => setTodayStatus(statusArr));
+}, [teamMembers, today]);
 
   // Filtering
   const filteredRecords = todayStatus.filter(record => {

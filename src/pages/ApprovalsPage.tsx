@@ -190,10 +190,11 @@ const ApprovalDetailDialog = ({ approval, onApprove, onReject }: { approval: App
 
 export const ApprovalsPage = () => {
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
-  const [filter, setFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [openShiftRequests, setOpenShiftRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const {user}=useAuth()
+  const [filter, setFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchApprovals = async () => {
@@ -220,6 +221,7 @@ export const ApprovalsPage = () => {
           reason: item.reason,
           approverNotes: item.approverNotes || '',
         }));
+        
         setApprovals(transformedData);
       } catch (error) {
         console.error('Error fetching approvals:', error);
@@ -227,8 +229,22 @@ export const ApprovalsPage = () => {
         setLoading(false);
       }
     };
+    const fetchOpenShiftRequests = async () => {
+      if (!user?.employeeId) return;
+      try {
+        const res = await fetch(`http://localhost:5000/workDay/shifts/requests/manager/${user.employeeId}`);
+        const data = await res.json();
+        console.log("Fetched open shift requests:", data);
+        setOpenShiftRequests(data);
+      } catch (err) {
+        console.error("Error fetching open shift requests:", err);
+      }
+    };
+
     fetchApprovals();
-  }, []);
+    fetchOpenShiftRequests();
+    setLoading(false);
+  }, [user]);
 
   const filteredApprovals = approvals.filter((approval) => {
     const statusMatch = filter === 'all' || approval.status === filter;
@@ -324,6 +340,37 @@ const handleReject = async (id: string, notes: string) => {
     console.error("Error rejecting leave request:", error);
   }
 };
+
+// Approve Open Shift
+  const handleApproveOpenShift = async (shiftId: string) => {
+    try {
+      const res = await fetch(`http://localhost:5000/workDay/shifts/request/approve/${shiftId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ managerId: user.employeeId }),
+      });
+      if (!res.ok) throw new Error("Failed to approve open shift");
+      // Optionally update UI
+      setOpenShiftRequests((prev) => prev.filter((shift) => shift._id !== shiftId));
+    } catch (err) {
+      console.error("Error approving open shift:", err);
+    }
+  };
+
+  // Reject Open Shift
+  const handleRejectOpenShift = async (shiftId: string) => {
+    try {
+      const res = await fetch(`http://localhost:5000/workDay/shifts/request/reject/${shiftId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ managerId: user.employeeId }),
+      });
+      if (!res.ok) throw new Error("Failed to reject open shift");
+      setOpenShiftRequests((prev) => prev.filter((shift) => shift._id !== shiftId));
+    } catch (err) {
+      console.error("Error rejecting open shift:", err);
+    }
+  };
 
   if (loading) {
     return <div>Loading approvals...</div>;
@@ -495,6 +542,44 @@ const handleReject = async (id: string, notes: string) => {
           })
         )}
       </div>
+
+      {/* Open Shift Requests Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Open Shift Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {openShiftRequests.length === 0 ? (
+            <div className="text-muted-foreground">No open shift requests pending approval.</div>
+          ) : (
+            openShiftRequests.map((shift) => (
+              <div key={shift._id} className="border-b py-3 flex justify-between items-center">
+                <div>
+                  <div>
+                    <strong>Employee:</strong> {shift.requestedBy?.firstName} {shift.requestedBy?.lastName}
+                  </div>
+                  <div>
+                    <strong>Date:</strong> {new Date(shift.date).toLocaleDateString()}
+                  </div>
+                  <div>
+                    <strong>Time:</strong> {new Date(shift.startTime).toLocaleTimeString()} - {new Date(shift.endTime).toLocaleTimeString()}
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <Button size="sm" onClick={() => handleApproveOpenShift(shift._id)}>
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Approve
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleRejectOpenShift(shift._id)}>
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

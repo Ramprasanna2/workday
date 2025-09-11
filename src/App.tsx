@@ -10,7 +10,7 @@ import { LandingPage } from './pages/LandingPage';
 import { WorkforceProductPage } from './pages/WorkforceProductPage';
 import { LoginPage } from './pages/LoginPage';
 import { Dashboard } from './pages/Dashboard';
-import { EmployeeManagement } from './pages/EmployeeManagement';
+import {EmployeeManagement} from './pages/EmployeeManagement';
 import { AttendancePage } from './pages/AttendancePage';
 import { LeaveRequestsPage } from './pages/LeaveRequestsPage';
 import ShiftsPage  from './pages/ShiftsPage';
@@ -26,6 +26,9 @@ import { SettingsPage } from './pages/SettingsPage';
 import { HCMDashboard } from './pages/HCMDashboard';
 import { GoalManagementPage}  from './pages/GoalManagementPage';
 import { MyGoalsPage } from './pages/MyGoalsPage';
+import  DepartmentPositionPage  from './pages/Departmentss';
+import EmployeeManagementPage from './pages/Employeesss'
+
 
 const AboutPage = () => (
   <div className="min-h-screen bg-background">
@@ -225,6 +228,24 @@ export default function App() {
               <ProtectedRoute allowedRoles={['admin']}>
                 <DashboardLayout>
                   <SettingsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin Department Position route */}
+            <Route path="/dashboard/departments" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <DashboardLayout>
+                  <DepartmentPositionPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin Employee Management route */}
+            <Route path="/dashboard/employeees" element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <DashboardLayout>
+                  <EmployeeManagementPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } />

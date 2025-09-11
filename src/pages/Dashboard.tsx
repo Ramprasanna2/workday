@@ -200,21 +200,21 @@ export const Dashboard: React.FC = () => {
 
   const getQuickActions = () => {
     switch (user?.role) {
-      case 'employee':
+      case 'Employee':
         return [
           { label: 'Clock In/Out', href: '/dashboard/attendance', variant: 'default' as const },
           { label: 'My Goals', href: '/dashboard/my-goals', variant: 'outline' as const },
           { label: 'Request Leave', href: '/dashboard/leave-requests', variant: 'outline' as const },
           { label: 'View Schedule', href: '/dashboard/shifts', variant: 'outline' as const },
         ];
-      case 'manager':
+      case 'Manager':
         return [
           { label: 'Assign Goals', href: '/dashboard/goals', variant: 'default' as const },
           { label: 'Review Approvals', href: '/dashboard/approvals', variant: 'outline' as const },
           { label: 'Team Attendance', href: '/dashboard/team-attendance', variant: 'outline' as const },
           { label: 'View Reports', href: '/dashboard/reports', variant: 'outline' as const },
         ];
-      case 'admin':
+      case 'Admin':
         return [
           { label: 'Manage Employees', href: '/dashboard/employees', variant: 'default' as const },
           { label: 'Goal Management', href: '/dashboard/goals', variant: 'outline' as const },
@@ -237,9 +237,9 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      {user?.role === 'employee' && renderEmployeeDashboard()}
-      {user?.role === 'manager' && renderManagerDashboard()}
-      {user?.role === 'admin' && renderAdminDashboard()}
+      {user?.role === 'Employee' && renderEmployeeDashboard()}
+      {user?.role === 'Manager' && renderManagerDashboard()}
+      {user?.role === 'Admin' && renderAdminDashboard()}
 
       {/* Quick Actions */}
       <Card>
@@ -272,7 +272,7 @@ export const Dashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {user?.role === 'employee' && (
+            {user?.role === 'Employee' && (
               <div className="flex items-center space-x-3">
                 <Target className="h-5 w-5 text-blue-500" />
                 <div>
@@ -281,7 +281,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
             )}
-            {user?.role === 'manager' && (
+            {user?.role === 'Manager' && (
               <div className="flex items-center space-x-3">
                 <CheckCircle className="h-5 w-5 text-green-500" />
                 <div>

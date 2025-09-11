@@ -1,25 +1,72 @@
-import React, { useState } from 'react';
-import { Download, DollarSign, TrendingUp, Users, Calendar, FileText, Edit, Eye, Search, Filter } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import React, { useState, useEffect } from 'react';
+import {
+  Download,
+  DollarSign,
+  TrendingUp,
+  Users,
+  Calendar,
+  Eye,
+  Search,
+} from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../components/ui/dialog';
+
+interface Employee {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  jobInfo: {
+    departmentId: {
+      name: string;
+    };
+    positionId: {
+      title: string;
+    };
+  };
+}
 
 interface EmployeePayroll {
-  id: string;
+  _id: string;
   employeeId: string;
-  employeeName: string;
-  department: string;
-  position: string;
-  payPeriod: string;
-  hoursWorked: number;
+  employeeName?: string;
+  department?: string;
+  position?: string;
+  payPeriodStart: string;
+  payPeriodEnd: string;
   regularHours: number;
   overtimeHours: number;
-  hourlyRate: number;
+  wage: number;
   overtimeRate: number;
   grossPay: number;
   deductions: {
@@ -30,88 +77,11 @@ interface EmployeePayroll {
     retirement: number;
   };
   netPay: number;
-  bonuses: number;
-  status: 'draft' | 'pending' | 'approved' | 'paid';
-  payDate: string;
+  finalBill: number;
+  status: 'draft' | 'pending' | 'approved' | 'paid' | 'rejected';
+  createdAt?: string;
+  updatedAt?: string;
 }
-
-const mockPayrollData: EmployeePayroll[] = [
-  {
-    id: '1',
-    employeeId: 'EMP001',
-    employeeName: 'John Smith',
-    department: 'Customer Service',
-    position: 'Representative',
-    payPeriod: 'Jan 1-15, 2024',
-    hoursWorked: 80,
-    regularHours: 72,
-    overtimeHours: 8,
-    hourlyRate: 25.00,
-    overtimeRate: 37.50,
-    grossPay: 2100.00,
-    deductions: {
-      tax: 315.00,
-      socialSecurity: 130.20,
-      medicare: 30.45,
-      insurance: 125.00,
-      retirement: 105.00
-    },
-    netPay: 1394.35,
-    bonuses: 200.00,
-    status: 'approved',
-    payDate: '2024-01-16'
-  },
-  {
-    id: '2',
-    employeeId: 'EMP002',
-    employeeName: 'Alice Johnson',
-    department: 'Sales',
-    position: 'Sales Associate',
-    payPeriod: 'Jan 1-15, 2024',
-    hoursWorked: 80,
-    regularHours: 80,
-    overtimeHours: 0,
-    hourlyRate: 22.00,
-    overtimeRate: 33.00,
-    grossPay: 1760.00,
-    deductions: {
-      tax: 264.00,
-      socialSecurity: 109.12,
-      medicare: 25.52,
-      insurance: 125.00,
-      retirement: 88.00
-    },
-    netPay: 1148.36,
-    bonuses: 0,
-    status: 'pending',
-    payDate: '2024-01-16'
-  },
-  {
-    id: '3',
-    employeeId: 'EMP003',
-    employeeName: 'Bob Wilson',
-    department: 'IT',
-    position: 'Developer',
-    payPeriod: 'Jan 1-15, 2024',
-    hoursWorked: 80,
-    regularHours: 76,
-    overtimeHours: 4,
-    hourlyRate: 35.00,
-    overtimeRate: 52.50,
-    grossPay: 2870.00,
-    deductions: {
-      tax: 430.50,
-      socialSecurity: 177.94,
-      medicare: 41.62,
-      insurance: 150.00,
-      retirement: 143.50
-    },
-    netPay: 1926.44,
-    bonuses: 500.00,
-    status: 'draft',
-    payDate: '2024-01-16'
-  }
-];
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -123,6 +93,8 @@ const getStatusColor = (status: string) => {
       return 'bg-green-100 text-green-800';
     case 'paid':
       return 'bg-blue-100 text-blue-800';
+    case 'rejected':
+      return 'bg-red-100 text-red-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }
@@ -131,8 +103,12 @@ const getStatusColor = (status: string) => {
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD'
+    currency: 'USD',
   }).format(amount);
+};
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString();
 };
 
 const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
@@ -141,10 +117,9 @@ const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
       <DialogHeader>
         <DialogTitle>Payroll Details - {payroll.employeeName}</DialogTitle>
         <DialogDescription>
-          Pay period: {payroll.payPeriod}
+          Pay period: {formatDate(payroll.payPeriodStart)} to {formatDate(payroll.payPeriodEnd)}
         </DialogDescription>
       </DialogHeader>
-      
       <div className="space-y-6">
         {/* Employee Info */}
         <div className="bg-muted/50 p-4 rounded-lg">
@@ -155,20 +130,23 @@ const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
               <span className="ml-2">{payroll.employeeId}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">Department:</span>
-              <span className="ml-2">{payroll.department}</span>
+              <span className="text-muted-foreground">Name:</span>
+              <span className="ml-2">{payroll.employeeName}</span>
             </div>
-            <div>
-              <span className="text-muted-foreground">Position:</span>
-              <span className="ml-2">{payroll.position}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Pay Date:</span>
-              <span className="ml-2">{payroll.payDate}</span>
-            </div>
+            {payroll.department && (
+              <div>
+                <span className="text-muted-foreground">Department:</span>
+                <span className="ml-2">{payroll.department}</span>
+              </div>
+            )}
+            {payroll.position && (
+              <div>
+                <span className="text-muted-foreground">Position:</span>
+                <span className="ml-2">{payroll.position}</span>
+              </div>
+            )}
           </div>
         </div>
-
         {/* Hours & Earnings */}
         <div>
           <h4 className="font-medium mb-3">Hours & Earnings</h4>
@@ -185,35 +163,30 @@ const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
               <TableRow>
                 <TableCell>Regular Hours</TableCell>
                 <TableCell>{payroll.regularHours}</TableCell>
-                <TableCell>{formatCurrency(payroll.hourlyRate)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(payroll.regularHours * payroll.hourlyRate)}</TableCell>
+                <TableCell>{formatCurrency(payroll.wage)}</TableCell>
+                <TableCell className="text-right">
+                  {formatCurrency(payroll.regularHours * payroll.wage)}
+                </TableCell>
               </TableRow>
               {payroll.overtimeHours > 0 && (
                 <TableRow>
                   <TableCell>Overtime Hours</TableCell>
                   <TableCell>{payroll.overtimeHours}</TableCell>
                   <TableCell>{formatCurrency(payroll.overtimeRate)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(payroll.overtimeHours * payroll.overtimeRate)}</TableCell>
-                </TableRow>
-              )}
-              {payroll.bonuses > 0 && (
-                <TableRow>
-                  <TableCell>Bonuses</TableCell>
-                  <TableCell>-</TableCell>
-                  <TableCell>-</TableCell>
-                  <TableCell className="text-right">{formatCurrency(payroll.bonuses)}</TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(payroll.overtimeHours * payroll.overtimeRate)}
+                  </TableCell>
                 </TableRow>
               )}
               <TableRow className="font-medium bg-muted/50">
                 <TableCell>Gross Pay</TableCell>
-                <TableCell>{payroll.hoursWorked}</TableCell>
+                <TableCell>{payroll.regularHours + payroll.overtimeHours}</TableCell>
                 <TableCell>-</TableCell>
                 <TableCell className="text-right">{formatCurrency(payroll.grossPay)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
         </div>
-
         {/* Deductions */}
         <div>
           <h4 className="font-medium mb-3">Deductions</h4>
@@ -254,7 +227,6 @@ const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
             </TableBody>
           </Table>
         </div>
-
         {/* Net Pay */}
         <div className="bg-primary/5 p-4 rounded-lg">
           <div className="flex justify-between items-center">
@@ -262,17 +234,12 @@ const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
             <span className="text-2xl font-bold text-primary">{formatCurrency(payroll.netPay)}</span>
           </div>
         </div>
-
-        {/* Actions */}
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline">
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Payroll
-          </Button>
-          <Button>
-            <Download className="h-4 w-4 mr-2" />
-            Generate Payslip
-          </Button>
+        {/* Final Bill */}
+        <div className="bg-primary/5 p-4 rounded-lg">
+          <div className="flex justify-between items-center">
+            <h4 className="font-medium">Final Bill</h4>
+            <span className="text-2xl font-bold text-primary">{formatCurrency(payroll.finalBill)}</span>
+          </div>
         </div>
       </div>
     </DialogContent>
@@ -280,44 +247,144 @@ const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
 };
 
 export const PayrollPage = () => {
+  const [payrollData, setPayrollData] = useState<EmployeePayroll[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
 
-  const filteredPayroll = mockPayrollData.filter(payroll => {
-    const matchesSearch = payroll.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         payroll.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [payrollRes, employeesRes] = await Promise.all([
+          fetch('http://localhost:5000/workDay/payslips'),
+          fetch('http://localhost:5000/workDay/employees/all'),
+        ]);
+        const payrollData = await payrollRes.json();
+        const employeesData = await employeesRes.json();
+        const enrichedPayrollData = payrollData.map((payroll: EmployeePayroll) => {
+          const employee = employeesData.find((emp: Employee) => emp._id === payroll.employeeId);
+          return {
+            ...payroll,
+            employeeName: employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown',
+            department: employee ? employee.jobInfo.departmentId.name : 'Unknown',
+            position: employee ? employee.jobInfo.positionId.title : 'Unknown',
+          };
+        });
+        setPayrollData(enrichedPayrollData);
+        setEmployees(employeesData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const filteredPayroll = payrollData.filter((payroll) => {
+    const matchesSearch =
+      payroll.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payroll.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || payroll.status === statusFilter;
     const matchesDepartment = departmentFilter === 'all' || payroll.department === departmentFilter;
-    
     return matchesSearch && matchesStatus && matchesDepartment;
   });
 
-  const totalGrossPay = mockPayrollData.reduce((sum, payroll) => sum + payroll.grossPay, 0);
-  const totalNetPay = mockPayrollData.reduce((sum, payroll) => sum + payroll.netPay, 0);
-  const totalEmployees = mockPayrollData.length;
+  const totalGrossPay = payrollData.reduce((sum, payroll) => sum + payroll.grossPay, 0);
+  const totalNetPay = payrollData.reduce((sum, payroll) => sum + payroll.netPay, 0);
+  const totalEmployees = payrollData.length;
   const averagePay = totalNetPay / totalEmployees;
 
+  const handleStatusChange = async (id: string, newStatus: 'approved' | 'rejected') => {
+    try {
+      const response = await fetch(`http://localhost:5000/workDay/payslips/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (response.ok) {
+        setPayrollData((prev) =>
+          prev.map((payroll) =>
+            payroll._id === id ? { ...payroll, status: newStatus } : payroll
+          )
+        );
+      } else {
+        console.error('Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers = [
+      'Employee ID',
+      'Employee Name',
+      'Department',
+      'Position',
+      'Pay Period',
+      'Regular Hours',
+      'Overtime Hours',
+      'Wage',
+      'Gross Pay',
+      'Net Pay',
+      'Final Bill',
+      'Status',
+    ];
+
+    const csvRows = filteredPayroll.map((payroll) => [
+      payroll.employeeId,
+      payroll.employeeName,
+      payroll.department,
+      payroll.position,
+      `${formatDate(payroll.payPeriodStart)} to ${formatDate(payroll.payPeriodEnd)}`,
+      payroll.regularHours,
+      payroll.overtimeHours,
+      formatCurrency(payroll.wage),
+      formatCurrency(payroll.grossPay),
+      formatCurrency(payroll.netPay),
+      formatCurrency(payroll.finalBill),
+      payroll.status,
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...csvRows.map((row) => row.join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'payroll_export.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  if (loading) return <div>Loading...</div>;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1>Payroll Management</h1>
-          <p className="text-muted-foreground">
-            Manage employee payroll and compensation
-          </p>
+          <h1 className="text-2xl font-bold">Payroll Management</h1>
+          <p className="text-muted-foreground">Manage employee payroll and compensation</p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={exportToCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export Payroll
           </Button>
-          <Button>
-            Process Payroll
-          </Button>
+          <Button>Process Payroll</Button>
         </div>
       </div>
-
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -327,12 +394,9 @@ export const PayrollPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalGrossPay)}</div>
-            <p className="text-xs text-muted-foreground">
-              Current pay period
-            </p>
+            <p className="text-xs text-muted-foreground">Current pay period</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Total Net Pay</CardTitle>
@@ -340,12 +404,9 @@ export const PayrollPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalNetPay)}</div>
-            <p className="text-xs text-muted-foreground">
-              After deductions
-            </p>
+            <p className="text-xs text-muted-foreground">After deductions</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Employees</CardTitle>
@@ -353,12 +414,9 @@ export const PayrollPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalEmployees}</div>
-            <p className="text-xs text-muted-foreground">
-              Active employees
-            </p>
+            <p className="text-xs text-muted-foreground">Active employees</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Average Pay</CardTitle>
@@ -366,13 +424,10 @@ export const PayrollPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(averagePay)}</div>
-            <p className="text-xs text-muted-foreground">
-              Per employee
-            </p>
+            <p className="text-xs text-muted-foreground">Per employee</p>
           </CardContent>
         </Card>
       </div>
-
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -391,7 +446,6 @@ export const PayrollPage = () => {
                 />
               </div>
             </div>
-            
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Status" />
@@ -402,91 +456,103 @@ export const PayrollPage = () => {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
-            
             <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="Customer Service">Customer Service</SelectItem>
-                <SelectItem value="Sales">Sales</SelectItem>
                 <SelectItem value="IT">IT</SelectItem>
-                <SelectItem value="HR">HR</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
-
       {/* Payroll Table */}
       <Card>
         <CardHeader>
           <CardTitle>Payroll Records</CardTitle>
-          <CardDescription>
-            Current pay period: January 1-15, 2024
-          </CardDescription>
+          <CardDescription>Current pay period</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Hours</TableHead>
+                <TableHead>Employee Name</TableHead>
+                <TableHead>Employee ID</TableHead>
+                <TableHead>Pay Period</TableHead>
+                <TableHead>Regular Hours</TableHead>
+                <TableHead>Overtime Hours</TableHead>
+                <TableHead>Wage</TableHead>
                 <TableHead>Gross Pay</TableHead>
                 <TableHead>Net Pay</TableHead>
+                <TableHead>Final Bill</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPayroll.map((payroll) => (
-                <TableRow key={payroll.id}>
-                  <TableCell>
-                    <div>
+              {filteredPayroll.map((payroll) => {
+                const finalBill = (payroll.overtimeHours * payroll.overtimeRate) + payroll.netPay;
+                return (
+                  <TableRow key={payroll._id}>
+                    <TableCell>
                       <div className="font-medium">{payroll.employeeName}</div>
                       <div className="text-sm text-muted-foreground">{payroll.employeeId}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{payroll.department}</TableCell>
-                  <TableCell>
-                    <div>{payroll.hoursWorked}h</div>
-                    {payroll.overtimeHours > 0 && (
-                      <div className="text-sm text-muted-foreground">
-                        +{payroll.overtimeHours}h OT
+                    </TableCell>
+                    <TableCell>
+                      {formatDate(payroll.payPeriodStart)} to {formatDate(payroll.payPeriodEnd)}
+                    </TableCell>
+                    <TableCell>{payroll.regularHours}h</TableCell>
+                    <TableCell>{payroll.overtimeHours}h</TableCell>
+                    <TableCell>{formatCurrency(payroll.wage)}</TableCell>
+                    <TableCell>{formatCurrency(payroll.grossPay)}</TableCell>
+                    <TableCell>{formatCurrency(payroll.netPay)}</TableCell>
+                    <TableCell>{formatCurrency(finalBill)}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(payroll.status)}>
+                        {payroll.status.charAt(0).toUpperCase() + payroll.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </DialogTrigger>
+                          <PayrollDetailDialog payroll={payroll} />
+                        </Dialog>
+                        {payroll.status === 'draft' && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-green-600 border-green-600 hover:bg-green-50"
+                              onClick={() => handleStatusChange(payroll._id, 'approved')}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 border-red-600 hover:bg-red-50"
+                              onClick={() => handleStatusChange(payroll._id, 'rejected')}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        )}
                       </div>
-                    )}
-                  </TableCell>
-                  <TableCell>{formatCurrency(payroll.grossPay)}</TableCell>
-                  <TableCell>{formatCurrency(payroll.netPay)}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(payroll.status)}>
-                      {payroll.status.charAt(0).toUpperCase() + payroll.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                        </DialogTrigger>
-                        <PayrollDetailDialog payroll={payroll} />
-                      </Dialog>
-                      
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

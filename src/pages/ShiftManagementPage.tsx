@@ -1,665 +1,502 @@
-import React, { useState } from 'react';
-import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy, Filter, Search } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../components/ui/form';
-import { Textarea } from '../components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { useForm } from 'react-hook-form';
+import { Badge } from '../components/ui/badge';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from '../components/ui/breadcrumb';
+import { UniversalBackButton } from '../components/UniversalBackButton';
+import {
+  Calendar,
+  Clock,
+  User,
+  Save,
+  Sun,
+  Sunset,
+  Moon,
+  Settings2,
+  Plus
+} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { toast } from 'sonner';
+import { useAuth } from "../contexts/AuthContext";
+
+interface Employee {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  jobInfo: {
+    positionId: {
+      title: string;
+    };
+    departmentId: {
+      name: string;
+    };
+    managerId: string;
+  };
+  role: string;
+}
 
 interface Shift {
-  id: string;
-  title: string;
+  _id?: string;
+  id?: string;
+  type: 'morning' | 'afternoon' | 'night' | 'custom';
+  startTime: string;
+  endTime: string;
+  employeeId: string;
   date: string;
-  startTime: string;
-  endTime: string;
-  duration: number;
-  department: string;
-  location: string;
-  requiredStaff: number;
-  assignedStaff: string[];
-  description?: string;
-  status: 'scheduled' | 'active' | 'completed' | 'cancelled';
-  createdBy: string;
-  createdDate: string;
+  customName?: string;
 }
 
-interface ShiftTemplate {
-  id: string;
-  name: string;
-  startTime: string;
-  endTime: string;
-  duration: number;
-  department: string;
-  location: string;
-  requiredStaff: number;
-  daysOfWeek: string[];
-  description?: string;
-}
+const shiftTypes = [
+  { type: 'morning', name: 'Morning Shift', startTime: '09:00', endTime: '17:00', color: 'bg-yellow-100 text-yellow-800', icon: Sun },
+  { type: 'afternoon', name: 'Afternoon Shift', startTime: '13:00', endTime: '21:00', color: 'bg-blue-100 text-blue-800', icon: Sunset },
+  { type: 'night', name: 'Night Shift', startTime: '21:00', endTime: '05:00', color: 'bg-purple-100 text-purple-800', icon: Moon },
+] as const;
 
-const mockShifts: Shift[] = [
-  {
-    id: '1',
-    title: 'Morning Customer Service',
-    date: '2024-01-16',
-    startTime: '08:00',
-    endTime: '16:00',
-    duration: 8,
-    department: 'Customer Service',
-    location: 'Main Office - Floor 3',
-    requiredStaff: 5,
-    assignedStaff: ['John Smith', 'Alice Johnson', 'Bob Wilson', 'Carol Davis', 'Dave Brown'],
-    description: 'Regular morning shift for customer service operations',
-    status: 'scheduled',
-    createdBy: 'Manager Alice',
-    createdDate: '2024-01-10'
-  },
-  {
-    id: '2',
-    title: 'Evening Sales Support',
-    date: '2024-01-16',
-    startTime: '14:00',
-    endTime: '22:00',
-    duration: 8,
-    department: 'Sales',
-    location: 'Main Office - Floor 2',
-    requiredStaff: 3,
-    assignedStaff: ['Eve Wilson', 'Frank Miller'],
-    description: 'Evening sales support and lead follow-up',
-    status: 'scheduled',
-    createdBy: 'Manager Bob',
-    createdDate: '2024-01-11'
-  },
-  {
-    id: '3',
-    title: 'Night IT Maintenance',
-    date: '2024-01-15',
-    startTime: '22:00',
-    endTime: '06:00',
-    duration: 8,
-    department: 'IT',
-    location: 'Server Room',
-    requiredStaff: 2,
-    assignedStaff: ['Tech Lead Sarah', 'IT Support Mike'],
-    description: 'Scheduled maintenance and system updates',
-    status: 'completed',
-    createdBy: 'IT Manager',
-    createdDate: '2024-01-08'
-  }
-];
+export const ShiftManagementPage: React.FC = () => {
+  const { user } = useAuth();
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [employeeShifts, setEmployeeShifts] = useState<Shift[]>([]);
+  const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
+  const [draggedShift, setDraggedShift] = useState<{ type: string; data: any } | null>(null);
+  const [customShift, setCustomShift] = useState({ name: '', startTime: '', endTime: '' });
+  const [isCustomShiftOpen, setIsCustomShiftOpen] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
-const mockShiftTemplates: ShiftTemplate[] = [
-  {
-    id: '1',
-    name: 'Standard Day Shift',
-    startTime: '09:00',
-    endTime: '17:00',
-    duration: 8,
-    department: 'Customer Service',
-    location: 'Main Office',
-    requiredStaff: 4,
-    daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-    description: 'Standard business hours shift'
-  },
-  {
-    id: '2',
-    name: 'Weekend Coverage',
-    startTime: '10:00',
-    endTime: '18:00',
-    duration: 8,
-    department: 'Customer Service',
-    location: 'Main Office',
-    requiredStaff: 2,
-    daysOfWeek: ['Saturday', 'Sunday'],
-    description: 'Weekend customer support coverage'
-  },
-  {
-    id: '3',
-    name: 'Night Security',
-    startTime: '22:00',
-    endTime: '06:00',
-    duration: 8,
-    department: 'Security',
-    location: 'All Areas',
-    requiredStaff: 1,
-    daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-    description: 'Overnight security coverage'
-  }
-];
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/workDay/employees/all');
+        if (!res.ok) {
+          throw new Error('Failed to fetch employees');
+        }
+        const data = await res.json();
+        const filteredEmployees = data.filter((employee: Employee) =>
+          employee.jobInfo.managerId === user?.employeeId
+        );
+        setEmployees(filteredEmployees);
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        toast.error('Failed to fetch employees');
+      }
+    };
+    fetchEmployees();
+  }, [user?.employeeId]);
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'scheduled':
-      return 'bg-blue-100 text-blue-800';
-    case 'active':
-      return 'bg-green-100 text-green-800';
-    case 'completed':
-      return 'bg-gray-100 text-gray-800';
-    case 'cancelled':
-      return 'bg-red-100 text-red-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
+  useEffect(() => {
+    const fetchEmployeeShifts = async () => {
+      if (!selectedEmployee) return;
+      try {
+        const res = await fetch(`http://localhost:5000/workDay/shifts/employee/${selectedEmployee}`);
+        if (!res.ok) {
+          throw new Error('Failed to fetch employee shifts');
+        }
+        
+        const data = await res.json();
+        console.log('Fetched employee shifts:', data);
+        setEmployeeShifts(data);
+      } catch (error) {
+        console.error('Error fetching employee shifts:', error);
+        toast.error('Failed to fetch employee shifts');
+      }
+    };
+    fetchEmployeeShifts();
+  }, [selectedEmployee]);
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-};
-
-const CreateShiftDialog = () => {
-  const form = useForm({
-    defaultValues: {
-      title: '',
-      date: '',
-      startTime: '',
-      endTime: '',
-      department: '',
-      location: '',
-      requiredStaff: 1,
-      description: ''
+  const getWeekDates = (date: Date): Date[] => {
+    const week: Date[] = [];
+    const startOfWeek = new Date(date);
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day;
+    startOfWeek.setDate(diff);
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startOfWeek);
+      day.setDate(startOfWeek.getDate() + i);
+      week.push(day);
     }
-  });
-
-  const onSubmit = (data: any) => {
-    console.log('Create shift:', data);
-    // Handle form submission
+    return week;
   };
 
-  return (
-    <DialogContent className="max-w-md">
-      <DialogHeader>
-        <DialogTitle>Create New Shift</DialogTitle>
-        <DialogDescription>
-          Add a new shift to the schedule
-        </DialogDescription>
-      </DialogHeader>
-      
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Shift Title</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Morning Customer Service" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+  const weekDates: Date[] = getWeekDates(currentWeek);
+  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newWeek = new Date(currentWeek);
+    newWeek.setDate(currentWeek.getDate() + (direction === 'next' ? 7 : -7));
+    setCurrentWeek(newWeek);
+  };
 
-            <FormField
-              control={form.control}
-              name="requiredStaff"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Staff Needed</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="1" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+  const handleDragStart = (e: React.DragEvent, shiftType: any) => {
+    setDraggedShift({ type: 'predefined', data: shiftType });
+    e.dataTransfer.effectAllowed = 'copy';
+  };
 
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="startTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Start Time</FormLabel>
-                  <FormControl>
-                    <Input type="time" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
 
-            <FormField
-              control={form.control}
-              name="endTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>End Time</FormLabel>
-                  <FormControl>
-                    <Input type="time" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+  const handleDrop = (e: React.DragEvent, date: Date) => {
+    e.preventDefault();
+    if (!draggedShift || !selectedEmployee) {
+      toast.error('Please select an employee first');
+      return;
+    }
+    const dateString = date.toISOString().split('T')[0];
+    const existingShift = shifts.find(s =>
+      s.employeeId === selectedEmployee &&
+      s.date === dateString
+    );
+    if (existingShift) {
+      toast.error('Shift already assigned for this date');
+      return;
+    }
+    const newShift: Shift = {
+      id: Date.now().toString(),
+      type: draggedShift.data.type,
+      startTime: draggedShift.data.startTime,
+      endTime: draggedShift.data.endTime,
+      employeeId: selectedEmployee,
+      date: dateString,
+      customName: draggedShift.data.customName
+    };
+    setShifts([...shifts, newShift]);
+    setDraggedShift(null);
+    toast.success('Shift assigned successfully');
+  };
 
-          <FormField
-            control={form.control}
-            name="department"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Department</FormLabel>
-                <FormControl>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Customer Service">Customer Service</SelectItem>
-                      <SelectItem value="Sales">Sales</SelectItem>
-                      <SelectItem value="IT">IT</SelectItem>
-                      <SelectItem value="HR">HR</SelectItem>
-                      <SelectItem value="Security">Security</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+  const removeShift = (shiftId: string) => {
+    setShifts(shifts.filter(s => s.id !== shiftId));
+    toast.success('Shift removed');
+  };
 
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Main Office - Floor 3" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+  const getShiftForDate = (date: Date) => {
+    const dateString = date.toISOString().split('T')[0];
+    const localShifts = shifts.filter(s => s.employeeId === selectedEmployee && s.date === dateString);
+    const fetchedShifts = employeeShifts.filter(s => s.date === dateString);
+    return [...localShifts, ...fetchedShifts];
+  };
 
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description (Optional)</FormLabel>
-                <FormControl>
-                  <Textarea 
-                    placeholder="Add any additional details..."
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+  const getShiftColor = (type: string) => {
+    const shiftType = shiftTypes.find(st => st.type === type);
+    return shiftType ? shiftType.color : 'bg-gray-100 text-gray-800';
+  };
 
-          <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-            <Button type="submit">
-              Create Shift
-            </Button>
-          </div>
-        </form>
-      </Form>
-    </DialogContent>
-  );
-};
+  const saveShiftPlan = async () => {
+    const newShifts = shifts.filter(s => !s._id); // Only local (unsaved) shifts
+    if (newShifts.length === 0) {
+      toast.error('No new shifts to save');
+      return;
+    }
+    let successCount = 0;
+    let errorCount = 0;
+    for (const shift of newShifts) {
+      const payload = {
+        employeeId: shift.employeeId,
+        managerId: user?.employeeId,
+        date: shift.date,
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+        breakTimeInMinutes: 0,
+        isPublished: true
+      };
+      console.log('Saving shift with payload:',payload)
+      try {
+        const res = await fetch('http://localhost:5000/workDay/shifts/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          errorCount++;
+          const error = await res.json();
+          toast.error(error.error || 'Failed to assign shift');
+        } else {
+          successCount++;
+        }
+      } catch (err) {
+        errorCount++;
+        toast.error('Failed to assign shift');
+      }
+    }
+    if (successCount > 0) {
+      toast.success(`Shift plan saved! ${successCount} shifts assigned.`);
+      setShifts([]); // Clear local shifts
+      // Refresh employee shifts from backend
+      if (selectedEmployee) {
+        const res = await fetch(`http://localhost:5000/workDay/shifts/employee/${selectedEmployee}`);
+        const data = await res.json();
+        setEmployeeShifts(data);
+      }
+    }
+    if (errorCount > 0) {
+      toast.error(`${errorCount} shifts failed to assign.`);
+    }
+  };
 
-const ShiftManagementView = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const addCustomShift = () => {
+    if (!customShift.name || !customShift.startTime || !customShift.endTime) {
+      toast.error('Please fill all custom shift fields');
+      return;
+    }
+    const customShiftType = {
+      type: 'custom',
+      name: customShift.name,
+      startTime: customShift.startTime,
+      endTime: customShift.endTime,
+      color: 'bg-green-100 text-green-800',
+      icon: Settings2,
+      customName: customShift.name
+    };
+    setCustomShift({ name: '', startTime: '', endTime: '' });
+    setIsCustomShiftOpen(false);
+    toast.success('Custom shift created');
+  };
 
-  const filteredShifts = mockShifts.filter(shift => {
-    const matchesSearch = shift.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         shift.department.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || shift.status === statusFilter;
-    const matchesDepartment = departmentFilter === 'all' || shift.department === departmentFilter;
-    
-    return matchesSearch && matchesStatus && matchesDepartment;
-  });
-
-  const scheduledCount = mockShifts.filter(s => s.status === 'scheduled').length;
-  const activeCount = mockShifts.filter(s => s.status === 'active').length;
-  const totalStaffAssigned = mockShifts.reduce((sum, shift) => sum + shift.assignedStaff.length, 0);
-  const understaffedShifts = mockShifts.filter(s => s.assignedStaff.length < s.requiredStaff).length;
+  const selectedEmployeeData = employees.find(emp => emp._id === selectedEmployee);
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle>Scheduled Shifts</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{scheduledCount}</div>
-            <p className="text-xs text-muted-foreground">
-              This week
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle>Active Shifts</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Currently ongoing
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle>Staff Assigned</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalStaffAssigned}</div>
-            <p className="text-xs text-muted-foreground">
-              Total assignments
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle>Understaffed</CardTitle>
-            <Users className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{understaffedShifts}</div>
-            <p className="text-xs text-muted-foreground">
-              Need more staff
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filter Shifts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex space-x-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search shifts..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
-                />
-              </div>
-            </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="Customer Service">Customer Service</SelectItem>
-                <SelectItem value="Sales">Sales</SelectItem>
-                <SelectItem value="IT">IT</SelectItem>
-                <SelectItem value="Security">Security</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Shifts Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Shift Schedule</CardTitle>
-          <CardDescription>
-            Manage and oversee all scheduled shifts
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Shift Details</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Staffing</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredShifts.map((shift) => (
-                <TableRow key={shift.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{shift.title}</div>
-                      <div className="text-sm text-muted-foreground">{shift.location}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div>{formatDate(shift.date)}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {shift.startTime} - {shift.endTime} ({shift.duration}h)
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{shift.department}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <span className={`font-medium ${
-                        shift.assignedStaff.length < shift.requiredStaff ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                        {shift.assignedStaff.length}/{shift.requiredStaff}
-                      </span>
-                      {shift.assignedStaff.length < shift.requiredStaff && (
-                        <Badge variant="destructive" className="text-xs">
-                          Understaffed
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {shift.assignedStaff.slice(0, 2).join(', ')}
-                      {shift.assignedStaff.length > 2 && ` +${shift.assignedStaff.length - 2} more`}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(shift.status)}>
-                      {shift.status.charAt(0).toUpperCase() + shift.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copy
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-const ShiftTemplatesView = () => {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Shift Templates</CardTitle>
-          <CardDescription>
-            Create and manage reusable shift templates
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockShiftTemplates.map((template) => (
-              <Card key={template.id} className="border-dashed">
-                <CardHeader>
-                  <CardTitle className="text-base">{template.name}</CardTitle>
-                  <CardDescription>
-                    {template.startTime} - {template.endTime} ({template.duration}h)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Department:</span>
-                      <span className="ml-2">{template.department}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Staff Required:</span>
-                      <span className="ml-2">{template.requiredStaff}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Days:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {template.daysOfWeek.map((day) => (
-                          <Badge key={day} variant="secondary" className="text-xs">
-                            {day.slice(0, 3)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    {template.description && (
-                      <div>
-                        <span className="text-muted-foreground">Description:</span>
-                        <p className="text-xs mt-1">{template.description}</p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex space-x-2 mt-4">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Copy className="h-3 w-3 mr-1" />
-                      Use Template
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            
-            {/* Add New Template Card */}
-            <Card className="border-dashed border-2 hover:border-primary/50 transition-colors">
-              <CardContent className="flex flex-col items-center justify-center h-full py-8">
-                <Plus className="h-8 w-8 text-muted-foreground mb-2" />
-                <h4 className="font-medium">Create Template</h4>
-                <p className="text-sm text-muted-foreground text-center">
-                  Add a new shift template for quick scheduling
-                </p>
-                <Button variant="outline" className="mt-3">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Template
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export const ShiftManagementPage = () => {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <UniversalBackButton />
+      <div className="space-y-4">
         <div>
           <h1>Shift Management</h1>
-          <p className="text-muted-foreground">
-            Create, assign, and manage work shifts across departments
-          </p>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/dashboard">Manager Portal</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Shift Management</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline">
-            <Calendar className="h-4 w-4 mr-2" />
-            Calendar View
-          </Button>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Shift
-              </Button>
-            </DialogTrigger>
-            <CreateShiftDialog />
-          </Dialog>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <User className="h-5 w-5" />
+              <span>Select Employee</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose an employee to assign shifts..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px] overflow-y-auto">
+                {employees.map((employee) => (
+                  <SelectItem key={employee._id} value={employee._id}>
+                    <div className="flex items-center space-x-2">
+                      <span>
+                        {employee.firstName} {employee.lastName}
+                      </span>
+                      <Badge variant="outline" className="text-xs">
+                        {employee.jobInfo.departmentId.name}
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedEmployeeData && (
+              <div className="mt-3 p-3 bg-muted rounded-lg">
+                <p className="text-sm">
+                  <strong>Selected:</strong> {selectedEmployeeData.firstName} {selectedEmployeeData.lastName} ({selectedEmployeeData.email})
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-
-      <Tabs defaultValue="shifts" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="shifts">Shift Schedule</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="shifts">
-          <ShiftManagementView />
-        </TabsContent>
-        
-        <TabsContent value="templates">
-          <ShiftTemplatesView />
-        </TabsContent>
-      </Tabs>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2">
+              <Clock className="h-5 w-5" />
+              <span>Available Shifts</span>
+            </CardTitle>
+            <Dialog open={isCustomShiftOpen} onOpenChange={setIsCustomShiftOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Custom Shift
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Custom Shift</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="shift-name">Shift Name</Label>
+                    <Input
+                      id="shift-name"
+                      value={customShift.name}
+                      onChange={(e) => setCustomShift({...customShift, name: e.target.value})}
+                      placeholder="e.g., Weekend Shift"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="start-time">Start Time</Label>
+                      <Input
+                        id="start-time"
+                        type="time"
+                        value={customShift.startTime}
+                        onChange={(e) => setCustomShift({...customShift, startTime: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="end-time">End Time</Label>
+                      <Input
+                        id="end-time"
+                        type="time"
+                        value={customShift.endTime}
+                        onChange={(e) => setCustomShift({...customShift, endTime: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={addCustomShift} className="w-full">
+                    Create Shift
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {shiftTypes.map((shiftType) => {
+              const IconComponent = shiftType.icon;
+              return (
+                <div
+                  key={shiftType.type}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, shiftType)}
+                  className="cursor-grab active:cursor-grabbing border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-primary transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-lg ${shiftType.color}`}>
+                      <IconComponent className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{shiftType.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {shiftType.startTime} - {shiftType.endTime}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-sm text-muted-foreground mt-4">
+            💡 Drag and drop shifts onto calendar days to assign them
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2">
+              <Calendar className="h-5 w-5" />
+              <span>Weekly Schedule</span>
+            </CardTitle>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
+                Previous Week
+              </Button>
+              <span className="text-sm text-muted-foreground px-4">
+                {weekDates[0].toLocaleDateString()} - {weekDates[6].toLocaleDateString()}
+              </span>
+              <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
+                Next Week
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!selectedEmployee ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Please select an employee to view their schedule</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 gap-2">
+              {weekDates.map((date, index) => {
+                const dayShifts = getShiftForDate(date);
+                const isToday = date.toDateString() === new Date().toDateString();
+                return (
+                  <div
+                    key={date.toISOString()}
+                    className={`border rounded-lg p-3 min-h-[120px] ${
+                      isToday ? 'border-primary bg-primary/5' : 'border-gray-200'
+                    }`}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, date)}
+                  >
+                    <div className="text-center mb-2">
+                      <div className="text-sm font-medium">{weekDays[index]}</div>
+                      <div className={`text-lg ${isToday ? 'font-bold text-primary' : ''}`}>
+                        {date.getDate()}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      {dayShifts.map((shift) => (
+                        <div
+                          key={shift._id || shift.id}
+                          className={`text-xs p-2 rounded ${getShiftColor(shift.type)} cursor-pointer`}
+                          onClick={() => removeShift(shift.id!)}
+                          title="Click to remove"
+                        >
+                          <div className="font-medium">
+                            {shift.customName || shiftTypes.find(st => st.type === shift.type)?.name}
+                          </div>
+                          <div>{shift.startTime} - {shift.endTime}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      {selectedEmployee && shifts.filter(s => s.employeeId === selectedEmployee).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignment Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {shifts.filter(s => s.employeeId === selectedEmployee).length} shifts assigned to{' '}
+                  <strong>{selectedEmployeeData?.firstName} {selectedEmployeeData?.lastName}</strong>
+                </p>
+              </div>
+              <Button onClick={saveShiftPlan} className="bg-green-600 hover:bg-green-700">
+                <Save className="h-4 w-4 mr-2" />
+                Save Shift Plan
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

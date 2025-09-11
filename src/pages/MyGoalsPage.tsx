@@ -24,23 +24,76 @@ import {
 import { UniversalBackButton } from '../components/UniversalBackButton';
 
 interface Goal {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   employeeId: string;
-  employeeName: string;
+  employeeName?: string;  // you can populate this in backend if needed
   dueDate: Date;
-  priority: 'Low' | 'Medium' | 'High';
   status: 'Pending' | 'Ongoing' | 'Completed';
   assignedBy: string;
   createdAt: Date;
   updatedAt: Date;
-  progress?: number;
+  modules: ModuleItem[];
   notes?: string;
+  progress?: number;
+}
+
+interface ModuleItem {
+  _id: string;
+  name: string;
+  status: 'Pending' | 'Completed';
+}
+
+type ModuleStatus = 'Pending' | 'Completed';
+
+interface Employee {
+   _id: string;
+  firstName: string;
+  lastName: string;
+  name: string; // full name for display
+  email: string;
+  role: "Employee" | "Manager" | "Admin";
+
+  jobInfo: {
+    positionId: {
+      _id: string;
+      title: string;
+    } | string; // populated or just ID
+
+    departmentId: {
+      _id: string;
+      name: string;
+    } | string; // populated or just ID
+
+    managerId?: {
+      _id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | string; // populated or just ID
+
+    hireDate: string; // ISO date string when fetched from API
+  };
+
+  compensation: {
+    wage: number;
+    payPeriod: "Annual" | "Monthly";
+  };
+
+  leaveBalances: {
+    annual: number;
+    sick: number;
+  };
+  managerName:string;
+  createdAt: string;
+  updatedAt: string;
+
 }
 
 export const MyGoalsPage: React.FC = () => {
   const { user } = useAuth();
+  const [employee,setEmployee]=useState<Employee | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -51,83 +104,79 @@ export const MyGoalsPage: React.FC = () => {
 
   // Mock data for current user's goals
   useEffect(() => {
-    const mockGoals: Goal[] = [
-      {
-        id: '1',
-        title: 'Complete React Training Module',
-        description: 'Finish the advanced React training course and pass the certification exam. This includes completing all modules, hands-on exercises, and the final assessment.',
-        employeeId: user?.id || '1',
-        employeeName: user?.name || 'Current User',
-        dueDate: new Date('2024-12-15'),
-        priority: 'High',
-        status: 'Ongoing',
-        assignedBy: 'Sarah Manager',
-        createdAt: new Date('2024-11-01'),
-        updatedAt: new Date('2024-11-10'),
-        progress: 65,
-        notes: 'Completed modules 1-3, working on module 4 currently.',
-      },
-      {
-        id: '2',
-        title: 'Improve Code Documentation',
-        description: 'Update and improve documentation for the main project repositories. Focus on API documentation and code comments.',
-        employeeId: user?.id || '1',
-        employeeName: user?.name || 'Current User',
-        dueDate: new Date('2024-12-20'),
-        priority: 'Medium',
-        status: 'Pending',
-        assignedBy: 'Sarah Manager',
-        createdAt: new Date('2024-11-05'),
-        updatedAt: new Date('2024-11-05'),
-        progress: 0,
-      },
-      {
-        id: '3',
-        title: 'Mentor Junior Developer',
-        description: 'Provide mentorship and guidance to the new junior developer joining the team. Include code reviews and pair programming sessions.',
-        employeeId: user?.id || '1',
-        employeeName: user?.name || 'Current User',
-        dueDate: new Date('2024-11-30'),
-        priority: 'Medium',
-        status: 'Completed',
-        assignedBy: 'Sarah Manager',
-        createdAt: new Date('2024-10-15'),
-        updatedAt: new Date('2024-11-25'),
-        progress: 100,
-        notes: 'Successfully completed mentorship program. Junior developer is now working independently.',
-      },
-      {
-        id: '4',
-        title: 'Optimize Database Queries',
-        description: 'Review and optimize slow database queries to improve application performance by at least 25%.',
-        employeeId: user?.id || '1',
-        employeeName: user?.name || 'Current User',
-        dueDate: new Date('2025-01-15'),
-        priority: 'High',
-        status: 'Pending',
-        assignedBy: 'Sarah Manager',
-        createdAt: new Date('2024-11-12'),
-        updatedAt: new Date('2024-11-12'),
-        progress: 0,
-      },
-    ];
+  const fetchEmployeeGoals = async () => {
+    if (!user?.employeeId) return;
 
-    setGoals(mockGoals);
-  }, [user]);
+    try {
+      const response = await fetch(`http://localhost:5000/workDay/goals/employee/${user.employeeId}`); 
+      if (!response.ok) {
+        throw new Error("Failed to fetch goals");
+      }
+      const data: Goal[] = await response.json();
+      console.log(data);
+      setGoals(data);
+    } catch (error) {
+      console.error("Error fetching goals:", error);
+    }
+  };
 
-  const handleUpdateStatus = () => {
+  const fetchEmployee =async () => {
+    if (!user?.employeeId) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/workDay/employees/employee/${user.employeeId}`); 
+      if (!response.ok) {
+        throw new Error("Failed to fetch goals");
+      }
+      const data: Employee = await response.json();
+      data.name=`${data.firstName} ${data.lastName}`;
+      data.managerName = typeof data.jobInfo.managerId === 'object' && data.jobInfo.managerId 
+        ? `${data.jobInfo.managerId.firstName} ${data.jobInfo.managerId.lastName}` 
+        : 'Unknown Manager';
+
+      console.log(data);
+      setEmployee(data);
+    } catch (error) {
+      console.error("Error fetching goals:", error);
+    }
+  };
+
+  fetchEmployeeGoals();
+  fetchEmployee();
+}, [user]);
+
+// Example function to call bulk update API
+async function updateModulesStatus(goalId: string, modules: { _id: string, status: 'Pending' | 'Completed' }[]) {
+  const updates = modules.map(m => ({ moduleId: m._id, status: m.status }));
+  console.log(selectedGoal.modules.map(m => m.status)); // Should only show "Pending" or "Completed"
+  const res = await fetch(`http://localhost:5000/workDay/goals/${goalId}/modules/status`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      // Add auth header if needed
+    },
+    body: JSON.stringify({ updates }),
+  });
+  console.log(res);
+  return await res.json();
+}
+
+const handleUpdateStatus = async () => {
     if (!selectedGoal) return;
+
+    // Update modules status
+    await updateModulesStatus(selectedGoal._id, selectedGoal.modules);
 
     const updatedGoal = {
       ...selectedGoal,
       status: newStatus,
       updatedAt: new Date(),
-      notes: updateNotes || selectedGoal.notes,
+      notes: updateNotes || selectedGoal.description,
       progress: newStatus === 'Completed' ? 100 : newStatus === 'Ongoing' ? Math.max(selectedGoal.progress || 0, 25) : 0,
     };
 
     setGoals(prev => prev.map(goal => 
-      goal.id === selectedGoal.id ? updatedGoal : goal
+      goal._id === selectedGoal._id ? updatedGoal : goal
     ));
 
     setIsUpdateDialogOpen(false);
@@ -147,14 +196,7 @@ export const MyGoalsPage: React.FC = () => {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800 hover:bg-red-100';
-      case 'Medium': return 'bg-orange-100 text-orange-800 hover:bg-orange-100';
-      case 'Low': return 'bg-green-100 text-green-800 hover:bg-green-100';
-      default: return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
-    }
-  };
+
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -262,15 +304,13 @@ export const MyGoalsPage: React.FC = () => {
           const isDueSoon = daysUntilDue <= 3 && daysUntilDue >= 0 && goal.status !== 'Completed';
 
           return (
-            <Card key={goal.id} className="group hover:shadow-lg transition-all duration-300">
+            <Card key={goal._id} className="group hover:shadow-lg transition-all duration-300">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
                     <CardTitle className="text-lg">{goal.title}</CardTitle>
                     <div className="flex items-center space-x-2">
-                      <Badge variant="secondary" className={getPriorityColor(goal.priority)}>
-                        {goal.priority}
-                      </Badge>
+                      
                       <Badge variant="secondary" className={`${getStatusColor(goal.status)} flex items-center space-x-1`}>
                         {getStatusIcon(goal.status)}
                         <span>{goal.status}</span>
@@ -323,7 +363,7 @@ export const MyGoalsPage: React.FC = () => {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center space-x-1 text-muted-foreground">
                     <Calendar className="h-4 w-4" />
-                    <span>Due {format(goal.dueDate, 'MMM dd, yyyy')}</span>
+                    <span>Due {format(new Date(goal.dueDate), 'MMM dd, yyyy')}</span>
                   </div>
                   {isOverdue && (
                     <Badge variant="destructive" className="text-xs">
@@ -338,7 +378,7 @@ export const MyGoalsPage: React.FC = () => {
                 </div>
                 
                 <div className="text-xs text-muted-foreground">
-                  Assigned by {goal.assignedBy}
+                  Assigned by {employee?.managerName || "Unknown"}
                 </div>
               </CardContent>
             </Card>
@@ -361,129 +401,180 @@ export const MyGoalsPage: React.FC = () => {
       )}
 
       {/* Goal Detail Dialog */}
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          {selectedGoal && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center space-x-2">
-                  <Target className="h-5 w-5" />
-                  <span>{selectedGoal.title}</span>
-                </DialogTitle>
-              </DialogHeader>
-              
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Badge variant="secondary" className={getPriorityColor(selectedGoal.priority)}>
-                    {selectedGoal.priority} Priority
-                  </Badge>
-                  <Badge variant="secondary" className={`${getStatusColor(selectedGoal.status)} flex items-center space-x-1`}>
-                    {getStatusIcon(selectedGoal.status)}
-                    <span>{selectedGoal.status}</span>
-                  </Badge>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium mb-2">Description</h4>
-                  <p className="text-muted-foreground">{selectedGoal.description}</p>
-                </div>
-                
-                {selectedGoal.progress !== undefined && (
-                  <div>
-                    <h4 className="font-medium mb-2">Progress</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Completion</span>
-                        <span>{selectedGoal.progress}%</span>
-                      </div>
-                      <Progress value={selectedGoal.progress} className="h-3" />
-                    </div>
+<Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+  <DialogContent className="max-w-2xl">
+    {selectedGoal && (
+      <>
+        <DialogHeader>
+          <DialogTitle className="flex items-center space-x-2">
+            <Target className="h-5 w-5" />
+            <span>{selectedGoal.title}</span>
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Badge 
+              variant="secondary" 
+              className={`${getStatusColor(selectedGoal.status)} flex items-center space-x-1`}
+            >
+              {getStatusIcon(selectedGoal.status)}
+              <span>{selectedGoal.status}</span>
+            </Badge>
+          </div>
+          
+          <div>
+            <h4 className="font-medium mb-2">Description</h4>
+            <p className="text-muted-foreground">{selectedGoal.description}</p>
+          </div>
+
+          {/* Modules Section */}
+          {selectedGoal.modules && selectedGoal.modules.length > 0 && (
+            <div>
+              <h4 className="font-medium mb-2">Modules</h4>
+              <div className="space-y-2">
+                {selectedGoal.modules.map((module) => (
+                  <div 
+                    key={module._id} 
+                    className="flex items-center justify-between rounded-md border p-2"
+                  >
+                    <span className="text-sm">{module.name}</span>
+                    {module.status === 'Completed' ? (
+                      <Badge className="bg-green-100 text-green-800 flex items-center space-x-1">
+                        <CheckCircle className="h-3 w-3" />
+                        <span>Completed</span>
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-yellow-100 text-yellow-800 flex items-center space-x-1">
+                        <Clock className="h-3 w-3" />
+                        <span>Pending</span>
+                      </Badge>
+                    )}
                   </div>
-                )}
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-medium mb-1">Due Date</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {format(selectedGoal.dueDate, 'EEEE, MMMM dd, yyyy')}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-1">Assigned By</h4>
-                    <p className="text-sm text-muted-foreground">{selectedGoal.assignedBy}</p>
-                  </div>
-                </div>
-                
-                {selectedGoal.notes && (
-                  <div>
-                    <h4 className="font-medium mb-2">Notes</h4>
-                    <p className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
-                      {selectedGoal.notes}
-                    </p>
-                  </div>
-                )}
-                
-                <div className="text-xs text-muted-foreground">
-                  Last updated: {format(selectedGoal.updatedAt, 'MMM dd, yyyy at h:mm a')}
-                </div>
+                ))}
               </div>
-            </>
+            </div>
           )}
-        </DialogContent>
-      </Dialog>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-medium mb-1">Due Date</h4>
+              <p className="text-sm text-muted-foreground">
+                {format(selectedGoal.dueDate, 'EEEE, MMMM dd, yyyy')}
+              </p>
+            </div>
+            <div>
+              <h4 className="font-medium mb-1">Assigned By</h4>
+              <p className="text-sm text-muted-foreground">{employee?.managerName || "Unknown"}</p>
+            </div>
+          </div>
+
+          {selectedGoal.description && (
+            <div>
+              <h4 className="font-medium mb-2">Notes</h4>
+              <p className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
+                {selectedGoal.notes}
+              </p>
+            </div>
+          )}
+          
+          <div className="text-xs text-muted-foreground">
+            Last updated: {format(selectedGoal.updatedAt, 'MMM dd, yyyy at h:mm a')}
+          </div>
+        </div>
+      </>
+    )}
+  </DialogContent>
+</Dialog>
+
 
       {/* Update Status Dialog */}
-      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
-        <DialogContent>
-          {selectedGoal && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Update Goal Status</DialogTitle>
-                <DialogDescription>
-                  Update the status and add notes for "{selectedGoal.title}"
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-4">
-                <div>
-                  <Label>New Status</Label>
-                  <Select value={newStatus} onValueChange={(value: 'Pending' | 'Ongoing' | 'Completed') => setNewStatus(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Ongoing">Ongoing</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="notes">Update Notes (Optional)</Label>
-                  <Textarea
-                    id="notes"
-                    value={updateNotes}
-                    onChange={(e) => setUpdateNotes(e.target.value)}
-                    placeholder="Add notes about your progress or any updates..."
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="flex space-x-2">
-                  <Button onClick={handleUpdateStatus} className="flex-1">
-                    Update Status
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsUpdateDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+<Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+  <DialogContent>
+    {selectedGoal && (
+      <>
+        <DialogHeader>
+          <DialogTitle>Update Goal Status</DialogTitle>
+          <DialogDescription>
+            Update the status and add notes for "{selectedGoal.title}"
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* ✅ Show Modules with Complete Button */}
+          {selectedGoal.modules && selectedGoal.modules.length > 0 && (
+            <div>
+              <h4 className="font-medium mb-2">Modules</h4>
+              <ul className="space-y-2 text-sm">
+                {selectedGoal.modules.map((module, idx) => (
+                  <li key={module._id} className="flex items-center space-x-3">
+                    <span style={{flex:1}}className={module.status === "Completed" ? "line-through text-muted-foreground" : ""}>
+                      {module.name}
+                    </span>
+                    <Badge
+            className={
+              module.status === "Completed"
+                ? "bg-green-600 text-white font-bold"
+                : "bg-yellow-400 text-black font-bold"
+            }
+          >
+            {module.status}
+          </Badge>
+                  <Select
+                      value={module.status}
+                      onValueChange={(value: "Pending" | "Completed") => {
+                        setSelectedGoal((prev) => {
+                          if (!prev) return prev;
+                          const updatedModules = prev.modules.map((m, i) =>
+                            i === idx ? { ...m, status: value } : m
+                          );
+                          return { ...prev, modules: updatedModules };
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}1
+
+
+          <div>
+            <Label htmlFor="notes">Update Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              value={updateNotes}
+              onChange={(e) => setUpdateNotes(e.target.value)}
+              placeholder="Add notes about your progress or any updates..."
+              rows={3}
+            />
+          </div>
+
+          <div className="flex space-x-2">
+            <Button onClick={handleUpdateStatus} className="flex-1">
+              Update Status
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsUpdateDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </>
+    )}
+  </DialogContent>
+</Dialog>
     </div>
   );
 };

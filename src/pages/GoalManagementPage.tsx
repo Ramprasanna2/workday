@@ -12,146 +12,232 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Calendar } from '../components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { format } from 'date-fns';
-import { CalendarIcon, Plus, Target, Users, TrendingUp, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { CalendarIcon, Plus, Target, Clock, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { UniversalBackButton } from '../components/UniversalBackButton';
 
+type ModuleStatus = 'Pending' | 'Completed';
+
+interface ModuleItem {
+  id: string;      // local id for UI list handling
+  name: string;
+  status: ModuleStatus;
+}
+
 interface Goal {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   employeeId: string;
   employeeName: string;
   dueDate: Date;
-  priority: 'Low' | 'Medium' | 'High';
   status: 'Pending' | 'Ongoing' | 'Completed';
   assignedBy: string;
   createdAt: Date;
   updatedAt: Date;
+  modules: ModuleItem[];         // ⬅️ added
 }
 
 interface Employee {
-  id: string;
-  name: string;
+   _id: string;
+  firstName: string;
+  lastName: string;
+  name: string; // full name for display
   email: string;
-  department: string;
-  role: string;
+  role: "Employee" | "Manager" | "Admin";
+
+  jobInfo: {
+    positionId: {
+      _id: string;
+      title: string;
+    } | string; // populated or just ID
+
+    departmentId: {
+      _id: string;
+      name: string;
+    } | string; // populated or just ID
+
+    managerId?: {
+      _id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | string; // populated or just ID
+
+    hireDate: string; // ISO date string when fetched from API
+  };
+
+  compensation: {
+    wage: number;
+    payPeriod: "Annual" | "Monthly";
+  };
+
+  leaveBalances: {
+    annual: number;
+    sick: number;
+  };
+
+  createdAt: string;
+  updatedAt: string;
+
+}
+
+interface GoalsByEmployee {
+  [employeeId: string]: Goal[];
+}
+
+interface EmployeesById {
+  [id: string]: Employee;
 }
 
 export const GoalManagementPage: React.FC = () => {
   const { user } = useAuth();
-  const [goals, setGoals] = useState<Goal[]>([]);
+  
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [goalTitle, setGoalTitle] = useState('');
   const [goalDescription, setGoalDescription] = useState('');
   const [dueDate, setDueDate] = useState<Date>();
-  const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [employeesById, setEmployeesById] = useState<EmployeesById>({});
+  const [goalsByEmployee, setGoalsByEmployee] = useState<GoalsByEmployee>({});
+const allGoals: Goal[] = Object.values(goalsByEmployee).flat() as Goal[];
+  
+  // NEW: modules state for the dialog
+  const [modules, setModules] = useState<Array<{ id: string; name: string }>>([
+    { id: `${Date.now()}-0`, name: '' },
+  ]);
+  
 
-  // Mock data - In real app, this would come from API
-  useEffect(() => {
-    const mockEmployees: Employee[] = [
-      { id: '1', name: 'John Smith', email: 'john@company.com', department: 'Engineering', role: 'employee' },
-      { id: '2', name: 'Sarah Johnson', email: 'sarah@company.com', department: 'Engineering', role: 'employee' },
-      { id: '3', name: 'Mike Chen', email: 'mike@company.com', department: 'Engineering', role: 'employee' },
-      { id: '4', name: 'Emily Davis', email: 'emily@company.com', department: 'Marketing', role: 'employee' },
-      { id: '5', name: 'Alex Wilson', email: 'alex@company.com', department: 'Sales', role: 'employee' },
-    ];
+  // fetching goals for employee
+useEffect(() => {
+  const fetchGoals = async () => {
+    try {
+      if (!user?.employeeId) return;
+      const res = await fetch(`http://localhost:5000/workDay/goals/assigned/${user.employeeId}`);
+      if (!res.ok) throw new Error("Failed to fetch goals");
+      const data: Goal[] = await res.json();
 
-    const mockGoals: Goal[] = [
-      {
-        id: '1',
-        title: 'Complete React Training Module',
-        description: 'Finish the advanced React training course and pass the certification exam',
-        employeeId: '1',
-        employeeName: 'John Smith',
-        dueDate: new Date('2024-12-15'),
-        priority: 'High',
-        status: 'Ongoing',
-        assignedBy: user?.name || 'Manager',
-        createdAt: new Date('2024-11-01'),
-        updatedAt: new Date('2024-11-10'),
-      },
-      {
-        id: '2',
-        title: 'Improve Database Performance',
-        description: 'Optimize database queries and reduce response time by 30%',
-        employeeId: '2',
-        employeeName: 'Sarah Johnson',
-        dueDate: new Date('2024-12-20'),
-        priority: 'Medium',
-        status: 'Pending',
-        assignedBy: user?.name || 'Manager',
-        createdAt: new Date('2024-11-05'),
-        updatedAt: new Date('2024-11-05'),
-      },
-      {
-        id: '3',
-        title: 'Lead Code Review Sessions',
-        description: 'Conduct weekly code review sessions for junior developers',
-        employeeId: '3',
-        employeeName: 'Mike Chen',
-        dueDate: new Date('2024-12-31'),
-        priority: 'Medium',
-        status: 'Completed',
-        assignedBy: user?.name || 'Manager',
-        createdAt: new Date('2024-10-15'),
-        updatedAt: new Date('2024-11-08'),
-      },
-    ];
+      // HashMap grouping
+      const grouped: GoalsByEmployee = {};
+      data.forEach(goal => {
+        if (!grouped[goal.employeeId]) grouped[goal.employeeId] = [];
+        grouped[goal.employeeId].push(goal);
+      });
 
-    setEmployees(mockEmployees);
-    setGoals(mockGoals);
-  }, [user]);
-
-  const handleCreateGoal = () => {
-    if (!goalTitle || !goalDescription || !selectedEmployee || !dueDate) {
-      return;
+     
+      setGoalsByEmployee(grouped);
+    } catch (err) {
+      console.error("Error fetching goals:", err);
     }
-
-    const selectedEmp = employees.find(emp => emp.id === selectedEmployee);
-    if (!selectedEmp) return;
-
-    const newGoal: Goal = {
-      id: Date.now().toString(),
-      title: goalTitle,
-      description: goalDescription,
-      employeeId: selectedEmployee,
-      employeeName: selectedEmp.name,
-      dueDate,
-      priority,
-      status: 'Pending',
-      assignedBy: user?.name || 'Manager',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    setGoals(prev => [...prev, newGoal]);
-    
-    // Reset form
-    setGoalTitle('');
-    setGoalDescription('');
-    setSelectedEmployee('');
-    setDueDate(undefined);
-    setPriority('Medium');
-    setIsCreateDialogOpen(false);
   };
+
+  fetchGoals();
+}, [user,goalsByEmployee]);
+
+//fetching Team Members for manager
+useEffect(() => {
+  const fetchEmployees = async () => {
+    try {
+      if (!user?.employeeId) return;
+      const res = await fetch(`http://localhost:5000/workDay/employees/manager/${user.employeeId}`);
+      if (!res.ok) throw new Error("Failed to fetch employees");
+      const data: Employee[] = await res.json();
+
+      // Build employees map
+      const empMap: EmployeesById = {};
+      data.forEach(emp => {
+        emp.name=`${emp.firstName} ${emp.lastName}`
+        empMap[emp._id] = emp;
+      });
+
+      setEmployees(data);
+      setEmployeesById(empMap);
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+    }
+  };
+
+  fetchEmployees();
+}, [user]);
+
+
+  const addModuleRow = () => {
+    setModules((prev) => [...prev, { id: `${Date.now()}-${prev.length}`, name: '' }]);
+  };
+
+  const removeModuleRow = (id: string) => {
+    setModules((prev) => (prev.length <= 1 ? prev : prev.filter((m) => m.id !== id)));
+  };
+
+  const updateModuleName = (id: string, name: string) => {
+    setModules((prev) => prev.map((m) => (m.id === id ? { ...m, name } : m)));
+  };
+
+  const handleCreateGoal = async () => {
+  if (!goalTitle || !goalDescription || !selectedEmployee || !dueDate) return;
+
+  // at least one non-empty module
+  const cleanedModules = modules
+    .map((m) => m.name.trim())
+    .filter(Boolean);
+
+  if (cleanedModules.length === 0) return;
+
+  const selectedEmp = employeesById[selectedEmployee];
+  if (!selectedEmp) return;
+
+  const modulePayload = cleanedModules.map((name) => ({
+    name,
+    status: "Pending",
+  }));
+
+  try {
+    const res = await fetch("http://localhost:5000/workDay/goals/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        employeeId: selectedEmployee, // from dropdown
+        assignedBy: user?.employeeId, // logged-in manager
+        title: goalTitle,
+        description: goalDescription,
+        dueDate,
+        modules: modulePayload, 
+      }),
+    });
+
+    if (!res.ok) throw new Error("Failed to create goal");
+    const savedGoal: Goal = await res.json();
+    console.log(selectedEmp.name,selectedEmp.firstName)
+    console.log(savedGoal);
+    savedGoal.employeeName = selectedEmp.name;
+console.log(savedGoal);
+   setGoalsByEmployee((prev) => {
+  const updated = { ...prev };
+  if (!updated[savedGoal.employeeId]) {
+    updated[savedGoal.employeeId] = [];
+  }
+  updated[savedGoal.employeeId] = [...updated[savedGoal.employeeId], savedGoal];
+  return updated;
+});
+
+    // Reset form
+    setGoalTitle("");
+    setGoalDescription("");
+    setSelectedEmployee("");
+    setDueDate(undefined);
+    setModules([{ id: `${Date.now()}-0`, name: "" }]);
+    setIsCreateDialogOpen(false);
+  } catch (err) {
+    console.error("Error creating goal:", err);
+  }
+};
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Pending': return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100';
       case 'Ongoing': return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
       case 'Completed': return 'bg-green-100 text-green-800 hover:bg-green-100';
-      default: return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800 hover:bg-red-100';
-      case 'Medium': return 'bg-orange-100 text-orange-800 hover:bg-orange-100';
-      case 'Low': return 'bg-green-100 text-green-800 hover:bg-green-100';
       default: return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
     }
   };
@@ -165,16 +251,24 @@ export const GoalManagementPage: React.FC = () => {
     }
   };
 
-  const filteredGoals = filterStatus === 'all' 
-    ? goals 
-    : goals.filter(goal => goal.status.toLowerCase() === filterStatus);
+  const filteredGoals = allGoals.filter(goal => {
+  const matchStatus =
+    filterStatus === "all" ||
+    goal.status.toLowerCase() === filterStatus.toLowerCase(); // ✅ FIXED
+
+  const matchEmployee =
+    selectedEmployee === "all" || goal.employeeId === selectedEmployee;
+
+  return matchStatus && matchEmployee;
+});
+
 
   const stats = {
-    total: goals.length,
-    pending: goals.filter(g => g.status === 'Pending').length,
-    ongoing: goals.filter(g => g.status === 'Ongoing').length,
-    completed: goals.filter(g => g.status === 'Completed').length,
-  };
+  total: allGoals.length,
+  pending: allGoals.filter(g => g.status === "Pending").length,
+  ongoing: allGoals.filter(g => g.status === "Ongoing").length,
+  completed: allGoals.filter(g => g.status === "Completed").length,
+};
 
   return (
     <div className="space-y-6">
@@ -188,7 +282,7 @@ export const GoalManagementPage: React.FC = () => {
             </p>
           </div>
         </div>
-        
+
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="flex items-center space-x-2">
@@ -203,7 +297,10 @@ export const GoalManagementPage: React.FC = () => {
                 Create and assign a goal to one of your team members.
               </DialogDescription>
             </DialogHeader>
+            
+
             <div className="space-y-4">
+              {/* Employee */}
               <div>
                 <Label htmlFor="employee">Select Employee</Label>
                 <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
@@ -212,14 +309,15 @@ export const GoalManagementPage: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {employees.map(employee => (
-                      <SelectItem key={employee.id} value={employee.id}>
+                      <SelectItem key={employee._id} value={employee._id}>
                         {employee.name} - {employee.department}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              
+
+              {/* Title */}
               <div>
                 <Label htmlFor="title">Goal Title</Label>
                 <Input
@@ -229,7 +327,8 @@ export const GoalManagementPage: React.FC = () => {
                   placeholder="Enter goal title"
                 />
               </div>
-              
+
+              {/* Description */}
               <div>
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -240,8 +339,9 @@ export const GoalManagementPage: React.FC = () => {
                   rows={3}
                 />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+
+              {/* Due Date */}
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <Label>Due Date</Label>
                   <Popover>
@@ -261,28 +361,47 @@ export const GoalManagementPage: React.FC = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
-                
-                <div>
-                  <Label>Priority</Label>
-                  <Select value={priority} onValueChange={(value: 'Low' | 'Medium' | 'High') => setPriority(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Low">Low</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="High">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
-              
+
+              {/* MODULES - NEW */}
+              <div className="space-y-2">
+                <Label>Modules</Label>
+                <div className="space-y-2">
+                  {modules.map((m, idx) => (
+                    <div key={m.id} className="flex items-center gap-2">
+                      <Input
+                        value={m.name}
+                        onChange={(e) => updateModuleName(m.id, e.target.value)}
+                        placeholder={`Module ${idx + 1} name`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => removeModuleRow(m.id)}
+                        disabled={modules.length <= 1}
+                        className="shrink-0"
+                        aria-label="Remove module"
+                        title="Remove module"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button type="button" variant="secondary" onClick={addModuleRow} className="mt-1">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Module
+                </Button>
+              </div>
+
+              {/* Submit */}
               <Button onClick={handleCreateGoal} className="w-full">
                 Assign Goal
               </Button>
             </div>
           </DialogContent>
         </Dialog>
+        
       </div>
 
       {/* Stats Cards */}
@@ -296,7 +415,7 @@ export const GoalManagementPage: React.FC = () => {
             <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
@@ -306,7 +425,7 @@ export const GoalManagementPage: React.FC = () => {
             <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Progress</CardTitle>
@@ -316,7 +435,7 @@ export const GoalManagementPage: React.FC = () => {
             <div className="text-2xl font-bold text-blue-600">{stats.ongoing}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Completed</CardTitle>
@@ -332,22 +451,44 @@ export const GoalManagementPage: React.FC = () => {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Assigned Goals</CardTitle>
-              <CardDescription>Track progress of all assigned goals</CardDescription>
-            </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="ongoing">Ongoing</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+  <div>
+    <CardTitle>Assigned Goals</CardTitle>
+    <CardDescription>Track progress of all assigned goals</CardDescription>
+  </div>
+
+  <div className="flex items-center gap-2">
+    {/* Status Filter */}
+    <Select value={filterStatus} onValueChange={setFilterStatus}>
+      <SelectTrigger className="w-40">
+        <SelectValue placeholder="Filter by Status" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Status</SelectItem>
+        <SelectItem value="pending">Pending</SelectItem>
+        <SelectItem value="ongoing">Ongoing</SelectItem>
+        <SelectItem value="completed">Completed</SelectItem>
+      </SelectContent>
+    </Select>
+
+    {/* Employee Filter */}
+    <Select
+      value={selectedEmployee}
+      onValueChange={setSelectedEmployee}
+    >
+      <SelectTrigger className="w-48">
+        <SelectValue placeholder="Filter by Employee" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Employees</SelectItem>
+        {employees.map(emp => (
+          <SelectItem key={emp._id} value={emp._id}>
+            {emp.firstName} {emp.lastName}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+</div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -355,7 +496,7 @@ export const GoalManagementPage: React.FC = () => {
               <TableRow>
                 <TableHead>Employee</TableHead>
                 <TableHead>Goal</TableHead>
-                <TableHead>Priority</TableHead>
+                {/* Priority column removed */}
                 <TableHead>Status</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead>Last Updated</TableHead>
@@ -363,22 +504,23 @@ export const GoalManagementPage: React.FC = () => {
             </TableHeader>
             <TableBody>
               {filteredGoals.map((goal) => (
-                <TableRow key={goal.id}>
+                <TableRow key={goal._id}>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{goal.employeeName}</div>
+                      <div className="font-medium">{(employeesById[goal.employeeId]).name}</div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div>
                       <div className="font-medium">{goal.title}</div>
                       <div className="text-sm text-muted-foreground">{goal.description}</div>
+                      {/* Optional: quick glance of modules */}
+                      {goal.modules?.length ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Modules: {goal.modules.map(m => m.name).join(', ')}
+                        </div>
+                      ) : null}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={getPriorityColor(goal.priority)}>
-                      {goal.priority}
-                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={`${getStatusColor(goal.status)} flex items-center space-x-1 w-fit`}>
@@ -400,7 +542,7 @@ export const GoalManagementPage: React.FC = () => {
               ))}
             </TableBody>
           </Table>
-          
+
           {filteredGoals.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               No goals found for the selected filter.

@@ -157,13 +157,14 @@ export const ShiftSwapsPage = () => {
   // Handle accepting a swap
   const handleAcceptSwap = async (shiftId: string) => {
     try {
+      console.log(user.employeeId)
       const res = await fetch(
         `http://localhost:5000/workDay/shifts/request/${shiftId}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            newEmployeeId: user.employeeId,
+            employeeId: user.employeeId,
           }),
         }
       );

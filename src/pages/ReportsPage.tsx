@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { Download, Calendar, Users, Clock, TrendingUp, Filter, FileText, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -6,8 +6,7 @@ import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 
-
-// Mock data for various reports
+// Mock data for attendance and performance reports
 const attendanceData = [
   { month: 'Jan', present: 85, absent: 15, late: 8 },
   { month: 'Feb', present: 88, absent: 12, late: 6 },
@@ -15,32 +14,6 @@ const attendanceData = [
   { month: 'Apr', present: 87, absent: 13, late: 7 },
   { month: 'May', present: 91, absent: 9, late: 5 },
   { month: 'Jun', present: 89, absent: 11, late: 6 }
-];
-
-const payrollData = [
-  { month: 'Jan', totalPay: 125000, overtime: 15000, bonuses: 8000 },
-  { month: 'Feb', totalPay: 130000, overtime: 18000, bonuses: 12000 },
-  { month: 'Mar', totalPay: 128000, overtime: 16000, bonuses: 10000 },
-  { month: 'Apr', totalPay: 135000, overtime: 20000, bonuses: 15000 },
-  { month: 'May', totalPay: 132000, overtime: 17000, bonuses: 11000 },
-  { month: 'Jun', totalPay: 140000, overtime: 22000, bonuses: 18000 }
-];
-
-const departmentData = [
-  { name: 'Customer Service', employees: 25, value: 35 },
-  { name: 'Sales', employees: 18, value: 25 },
-  { name: 'IT', employees: 12, value: 17 },
-  { name: 'HR', employees: 8, value: 11 },
-  { name: 'Management', employees: 7, value: 10 },
-  { name: 'Finance', employees: 2, value: 3 }
-];
-
-const leaveData = [
-  { type: 'Vacation', count: 45, percentage: 40 },
-  { type: 'Sick Leave', count: 32, percentage: 28 },
-  { type: 'Personal', count: 18, percentage: 16 },
-  { type: 'Maternity/Paternity', count: 12, percentage: 11 },
-  { type: 'Bereavement', count: 6, percentage: 5 }
 ];
 
 const performanceData = [
@@ -54,12 +27,24 @@ const performanceData = [
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0
-  }).format(value);
+interface LeaveData {
+  type: string;
+  count: number;
+  percentage: number;
+}
+
+interface LeaveReportProps {
+  leaveData: LeaveData[];
+}
+
+const mapType = (reason: string): string => {
+  const reasonLower = reason.toLowerCase();
+  if (reasonLower.includes('vacation')) return 'Vacation';
+  if (reasonLower.includes('sick')) return 'Sick Leave';
+  if (reasonLower.includes('personal')) return 'Personal';
+  if (reasonLower.includes('maternity')) return 'Maternity/Paternity';
+  if (reasonLower.includes('bereavement')) return 'Bereavement';
+  return 'Vacation';
 };
 
 const AttendanceReport = () => {
@@ -71,9 +56,7 @@ const AttendanceReport = () => {
             <BarChart3 className="h-5 w-5" />
             Attendance Overview
           </CardTitle>
-          <CardDescription>
-            Monthly attendance trends and patterns
-          </CardDescription>
+          <CardDescription>Monthly attendance trends and patterns</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -90,7 +73,6 @@ const AttendanceReport = () => {
           </ResponsiveContainer>
         </CardContent>
       </Card>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -99,12 +81,9 @@ const AttendanceReport = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">89%</div>
-            <p className="text-xs text-muted-foreground">
-              +2% from last month
-            </p>
+            <p className="text-xs text-muted-foreground">+2% from last month</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Late Arrivals</CardTitle>
@@ -112,12 +91,9 @@ const AttendanceReport = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">6</div>
-            <p className="text-xs text-muted-foreground">
-              Average per month
-            </p>
+            <p className="text-xs text-muted-foreground">Average per month</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Perfect Attendance</CardTitle>
@@ -125,9 +101,7 @@ const AttendanceReport = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">45</div>
-            <p className="text-xs text-muted-foreground">
-              Employees this month
-            </p>
+            <p className="text-xs text-muted-foreground">Employees this month</p>
           </CardContent>
         </Card>
       </div>
@@ -135,149 +109,7 @@ const AttendanceReport = () => {
   );
 };
 
-const PayrollReport = () => {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Payroll Analysis
-          </CardTitle>
-          <CardDescription>
-            Monthly payroll expenses and breakdown
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={payrollData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis tickFormatter={formatCurrency} />
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              <Legend />
-              <Bar dataKey="totalPay" fill="#3b82f6" name="Base Pay" />
-              <Bar dataKey="overtime" fill="#10b981" name="Overtime" />
-              <Bar dataKey="bonuses" fill="#f59e0b" name="Bonuses" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle>Total Payroll</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(140000)}</div>
-            <p className="text-xs text-muted-foreground">
-              Current month
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle>Overtime Costs</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(22000)}</div>
-            <p className="text-xs text-muted-foreground">
-              15.7% of total payroll
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle>Avg Employee Pay</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(1944)}</div>
-            <p className="text-xs text-muted-foreground">
-              Per employee/month
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-};
-
-const DepartmentReport = () => {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PieChartIcon className="h-5 w-5" />
-              Department Distribution
-            </CardTitle>
-            <CardDescription>
-              Employee count by department
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={departmentData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {departmentData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Department Summary</CardTitle>
-            <CardDescription>
-              Detailed breakdown by department
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {departmentData.map((dept, index) => (
-                <div key={dept.name} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-4 h-4 rounded"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <span className="font-medium">{dept.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-medium">{dept.employees} employees</div>
-                    <div className="text-sm text-muted-foreground">{dept.value}% of total</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-};
-
-const LeaveReport = () => {
+const LeaveReport: React.FC<LeaveReportProps> = ({ leaveData }) => {
   return (
     <div className="space-y-6">
       <Card>
@@ -286,9 +118,7 @@ const LeaveReport = () => {
             <Calendar className="h-5 w-5" />
             Leave Requests Analysis
           </CardTitle>
-          <CardDescription>
-            Breakdown of leave types and usage
-          </CardDescription>
+          <CardDescription>Breakdown of leave types and usage</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -311,15 +141,11 @@ const LeaveReport = () => {
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-
             <div className="space-y-3">
               {leaveData.map((leave, index) => (
                 <div key={leave.type} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
                   <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-4 h-4 rounded"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                     <span className="font-medium">{leave.type}</span>
                   </div>
                   <div className="text-right">
@@ -332,7 +158,6 @@ const LeaveReport = () => {
           </div>
         </CardContent>
       </Card>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -340,13 +165,12 @@ const LeaveReport = () => {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">113</div>
-            <p className="text-xs text-muted-foreground">
-              This year
-            </p>
+            <div className="text-2xl font-bold">
+              {leaveData.reduce((sum, leave) => sum + leave.count, 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">This year</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Approval Rate</CardTitle>
@@ -354,12 +178,9 @@ const LeaveReport = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">94%</div>
-            <p className="text-xs text-muted-foreground">
-              Average approval rate
-            </p>
+            <p className="text-xs text-muted-foreground">Average approval rate</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Avg Duration</CardTitle>
@@ -367,9 +188,7 @@ const LeaveReport = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">2.3</div>
-            <p className="text-xs text-muted-foreground">
-              Days per request
-            </p>
+            <p className="text-xs text-muted-foreground">Days per request</p>
           </CardContent>
         </Card>
       </div>
@@ -386,9 +205,7 @@ const PerformanceReport = () => {
             <TrendingUp className="h-5 w-5" />
             Performance Metrics
           </CardTitle>
-          <CardDescription>
-            Key performance indicators over time
-          </CardDescription>
+          <CardDescription>Key performance indicators over time</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -405,7 +222,6 @@ const PerformanceReport = () => {
           </ResponsiveContainer>
         </CardContent>
       </Card>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -414,12 +230,9 @@ const PerformanceReport = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">89%</div>
-            <p className="text-xs text-muted-foreground">
-              +11% from start of year
-            </p>
+            <p className="text-xs text-muted-foreground">+11% from start of year</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Satisfaction</CardTitle>
@@ -427,12 +240,9 @@ const PerformanceReport = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">92%</div>
-            <p className="text-xs text-muted-foreground">
-              +10% from start of year
-            </p>
+            <p className="text-xs text-muted-foreground">+10% from start of year</p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Retention</CardTitle>
@@ -440,9 +250,7 @@ const PerformanceReport = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">98%</div>
-            <p className="text-xs text-muted-foreground">
-              +3% from start of year
-            </p>
+            <p className="text-xs text-muted-foreground">+3% from start of year</p>
           </CardContent>
         </Card>
       </div>
@@ -453,15 +261,47 @@ const PerformanceReport = () => {
 export const ReportsPage = () => {
   const [dateRange, setDateRange] = useState('last-6-months');
   const [exportFormat, setExportFormat] = useState('pdf');
+  const [leaveData, setLeaveData] = useState<LeaveData[]>([]);
+
+  const fetchLeaveData = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/workDay/leaves');
+      if (!res.ok) {
+        throw new Error('Failed to fetch leave data');
+      }
+      const data = await res.json();
+
+      // Group and count leave types
+      const leaveCounts: Record<string, number> = {};
+      data.forEach((item: any) => {
+        const type = mapType(item.reason);
+        leaveCounts[type] = (leaveCounts[type] || 0) + 1;
+      });
+
+      // Calculate percentages
+      const totalLeaves = Object.values(leaveCounts).reduce((sum, count) => sum + count, 0);
+      const transformedData = Object.entries(leaveCounts).map(([type, count]) => ({
+        type,
+        count,
+        percentage: totalLeaves > 0 ? Math.round((count / totalLeaves) * 100) : 0,
+      }));
+
+      setLeaveData(transformedData);
+    } catch (err) {
+      console.error('Failed to fetch leave data:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaveData();
+  }, []);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1>Reports & Analytics</h1>
-          <p className="text-muted-foreground">
-            Comprehensive workforce analytics and reporting
-          </p>
+          <p className="text-muted-foreground">Comprehensive workforce analytics and reporting</p>
         </div>
         <div className="flex space-x-2">
           <Select value={exportFormat} onValueChange={setExportFormat}>
@@ -481,7 +321,6 @@ export const ReportsPage = () => {
         </div>
       </div>
 
-      {/* Date Range Filter */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -507,32 +346,18 @@ export const ReportsPage = () => {
         </CardContent>
       </Card>
 
-      {/* Report Tabs */}
       <Tabs defaultValue="attendance" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll</TabsTrigger>
-          <TabsTrigger value="departments">Departments</TabsTrigger>
           <TabsTrigger value="leave">Leave</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
-        
         <TabsContent value="attendance">
           <AttendanceReport />
         </TabsContent>
-        
-        <TabsContent value="payroll">
-          <PayrollReport />
-        </TabsContent>
-        
-        <TabsContent value="departments">
-          <DepartmentReport />
-        </TabsContent>
-        
         <TabsContent value="leave">
-          <LeaveReport />
+          <LeaveReport leaveData={leaveData} />
         </TabsContent>
-        
         <TabsContent value="performance">
           <PerformanceReport />
         </TabsContent>
