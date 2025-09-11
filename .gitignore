@@ -1,2 +1,18 @@
 node_modules/
 workflowBackend/node_modules/
+# Dependencies
+**/node_modules/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Build outputs
+build/
+dist/
+out/
+.next/
+workflowBackend/dist/
+workflowBackend/build/
