@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   LogOut,
-  Building
+  Building,
+  Briefcase // Add an icon for Recruitment
 } from 'lucide-react';
 import { cn } from '../components/ui/utils';
 import { Button } from '../components/ui/button';
@@ -607,6 +608,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['Admin'] }, 
       { href: '/dashboard/employeees', label: 'Employee Create', icon: Users, roles: ['Admin'] },
       { href: '/dashboard/departments', label: 'Departments & Positions', icon: Building, roles: ['Admin'] },
+      { href: '/dashboard/recruitment', label: 'Recruitment', icon: Briefcase, roles: ['Manager'] },
     ];
 
     const notificationItem = [
