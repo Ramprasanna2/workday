@@ -16,6 +16,7 @@ import payslipRouter from './route/payslipRoute';
 import cors from "cors";
 import adminRouter from './route/adminRoute';
 import shiftGroupRouter from './route/shiftGroupRoute';
+import RecruitmentOnboardingPage from './route/RecruitmentOnboardingPage';
 
 dotenv.config();
 
@@ -62,6 +63,9 @@ app.use("/workDay/notifications", notificationRoutes);
 // admin Routes
 app.use('/workDay/admin', adminRouter);
 // Shift Group routes
+
+// Recruitment Routes
+app.use('/workDay/candidates', RecruitmentOnboardingPage);
 app.use('/workDay/shiftGroups', shiftGroupRouter);
 // Basic health check
 app.get('/', (req, res) => {
