@@ -140,7 +140,7 @@ useEffect(() => {
   const fetchEmployees = async () => {
     try {
       if (!user?.employeeId) return;
-      const res = await fetch(`http://localhost:5000/workDay/employees/manager/${user.employeeId}`);
+      const res = await fetch(`http://localhost:5000/workDay/employees/${user.employeeId}/team`);
       if (!res.ok) throw new Error("Failed to fetch employees");
       const data: Employee[] = await res.json();
 

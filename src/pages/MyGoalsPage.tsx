@@ -227,6 +227,24 @@ const handleUpdateStatus = async () => {
     completionRate: goals.length > 0 ? Math.round((goals.filter(g => g.status === 'Completed').length / goals.length) * 100) : 0,
   };
 
+  // Add this helper function to refresh goals badge
+  const refreshGoalsBadge = () => {
+    window.dispatchEvent(new CustomEvent('refreshGoalsBadge'));
+  };
+
+  // Call this function after any goal updates (create, update, complete, etc.)
+  // For example, after goal completion:
+  const handleCompleteGoal = async (goalId: string) => {
+    try {
+      // ... existing goal completion logic
+      
+      // Refresh the badge
+      refreshGoalsBadge();
+    } catch (error) {
+      console.error('Error completing goal:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

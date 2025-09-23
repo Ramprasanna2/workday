@@ -66,9 +66,10 @@ const DailyAttendanceView = () => {
 
   // Fetch team members managed by this manager
   useEffect(() => {
-    fetch(`http://localhost:5000/workDay/employees/manager/${user.employeeId}`)
+    fetch(`http://localhost:5000/workDay/employees/${user.employeeId}/team`)
       .then(res => res.json())
       .then((data)=>{setTeamMembers(data);
+        console.log("user")
         console.log(data);
       });
   }, [user.employeeId]);
@@ -78,7 +79,7 @@ const DailyAttendanceView = () => {
     fetch(`http://localhost:5000/workDay/shifts/date/${today}`)
       .then(res => res.json())
       .then((data)=>{setShiftSchedules(data);
-        
+        console.log(data);
       });
   }, [today]);
 
@@ -87,7 +88,7 @@ const DailyAttendanceView = () => {
     fetch(`http://localhost:5000/workDay/timeEntries/all`)
       .then(res => res.json())
       .then((data)=>{setAttendanceRecords(data);
-       
+       console.log(data);
       });
   }, []);
 
@@ -119,11 +120,11 @@ const DailyAttendanceView = () => {
       // Fetch today's attendance for this employee
       const attRes = await fetch(`http://localhost:5000/workDay/timeentries/employee/${member._id}/date/${today}`);
       const attendance = await attRes.json();
-
+     
       // Fetch approved leave request for this employee for today
       const leaveRes = await fetch(`http://localhost:5000/workDay/leaves/employee/${member._id}/date/${today}`);
       const leaves = await leaveRes.json();
-
+      
       // Determine status
       if (!shifts.length) {
         return {

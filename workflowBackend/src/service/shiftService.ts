@@ -102,7 +102,7 @@ export const updateShift = async (shiftId: string, data: Partial<{
   startTime: Date;
   endTime: Date;
   breakTimeInMinutes: number;
-  isPublished: boolean;
+  isPublished?: boolean;
 }>) => {
   return Shift.findByIdAndUpdate(shiftId, data, { new: true });
 };
@@ -253,3 +253,25 @@ export const rejectOpenShift = async (shiftId: string, managerId: string) => {
     rejectedEmployee 
   };
 }
+
+// Add this function to your existing shiftService.ts
+export const getPendingShiftRequestsByManager = async (managerId: string) => {
+  try {
+    
+    
+    const pendingShifts = await Shift.find({
+      managerId: new mongoose.Types.ObjectId(managerId),
+      requestStatus: 'pending'
+    })
+    .populate('employeeId', 'firstName lastName email')
+    .populate('requestedBy', 'firstName lastName email')
+    .populate('managerId', 'firstName lastName email')
+    .sort({ createdAt: -1 });
+    
+    
+    return pendingShifts;
+  } catch (error) {
+    console.error('Service error getting pending shift requests by manager:', error);
+    throw error;
+  }
+};

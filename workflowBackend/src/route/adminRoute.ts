@@ -9,6 +9,8 @@ import {
   getManagers,
   recalculateEmployeeCounts
 } from '../service/adminService';
+import {Employee} from '../model/model'; // Import the Employee model
+import mongoose from 'mongoose'; // Import mongoose for ObjectId
 
 const router = express.Router();
 
@@ -85,6 +87,29 @@ router.post('/recalculate-counts', async (req, res) => {
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Get team members by manager ID
+router.get('/employees/manager/:managerId/team', async (req, res) => {
+  try {
+    const { managerId } = req.params;
+    console.log('Getting team members for manager:', managerId);
+    
+    const teamMembers = await Employee.find({
+      'jobInfo.managerId': new mongoose.Types.ObjectId(managerId),
+      isActive: { $ne: false }
+    })
+    .populate('jobInfo.positionId', 'title')
+    .populate('jobInfo.departmentId', 'name')
+    .select('firstName lastName email jobInfo role')
+    .sort({ firstName: 1, lastName: 1 });
+    
+    console.log('Found team members:', teamMembers.length);
+    res.json(teamMembers);
+  } catch (err: any) {
+    console.error('Error getting team members:', err);
+    res.status(400).json({ error: err.message });
   }
 });
 

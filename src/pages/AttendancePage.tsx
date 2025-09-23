@@ -96,6 +96,12 @@ export const AttendancePage: React.FC = () => {
     return currentTime.toISOString().split('T')[0];
   };
 
+  // Add this helper function to refresh dashboard badge
+  const refreshClockInStatus = () => {
+    window.dispatchEvent(new CustomEvent('refreshClockInStatus'));
+  };
+
+  // Update handleClockIn function
   const handleClockIn = async () => {
     const now = new Date();
 
@@ -113,11 +119,15 @@ export const AttendancePage: React.FC = () => {
 
       if (!res.ok) throw new Error("Failed to clock in");
       await fetchAttendance(); // Refresh data after clock-in
+
+      // Refresh dashboard badge status
+      refreshClockInStatus();
     } catch (error) {
       console.error("Error clocking in:", error);
     }
   };
 
+  // Update handleClockOut function
   const handleClockOut = async () => {
     if (!todayRecord) return;
     const now = new Date();
@@ -146,6 +156,9 @@ export const AttendancePage: React.FC = () => {
 
       if (!res.ok) throw new Error("Failed to clock out");
       await fetchAttendance(); // Refresh data after clock-out
+
+      // Refresh dashboard badge status
+      refreshClockInStatus();
     } catch (error) {
       console.error("Error clocking out:", error);
     }

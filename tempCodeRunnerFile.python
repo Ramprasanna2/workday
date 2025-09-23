@@ -1,0 +1,12 @@
+import dask.array as da
+
+# Create a large array of 10 billion elements (lazy, not yet computed)
+x = da.random.random(size=(10000000000,), chunks=(1000000,))
+
+# Perform operations (still lazy)
+y = (x + 10) * 2
+
+# Trigger computation
+result = y.mean().compute()
+
+print("Mean:", result)

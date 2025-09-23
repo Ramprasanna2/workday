@@ -90,6 +90,11 @@ const formatTime = (timeString: string) => {
   });
 };
 
+// Add this helper function to refresh dashboard badge
+const refreshShiftSwapBadge = () => {
+  window.dispatchEvent(new CustomEvent('refreshShiftSwapBadge'));
+};
+
 export const ShiftSwapsPage = () => {
   const { user } = useAuth();
   const [myRequests, setMyRequests] = useState<Shift[]>([]);
@@ -172,6 +177,9 @@ export const ShiftSwapsPage = () => {
       // Refresh both lists
       await fetchMyRequests();
       await fetchAvailableSwaps();
+      
+      // Refresh dashboard badge
+      refreshShiftSwapBadge();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }
@@ -190,6 +198,9 @@ export const ShiftSwapsPage = () => {
       );
       if (!res.ok) throw new Error("Failed to cancel request");
       await fetchMyRequests();
+      
+      // Refresh dashboard badge
+      refreshShiftSwapBadge();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }

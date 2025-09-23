@@ -15,6 +15,7 @@ import goalRouter from './route/goalRoute';
 import payslipRouter from './route/payslipRoute';
 import cors from "cors";
 import adminRouter from './route/adminRoute';
+import shiftGroupRouter from './route/shiftGroupRoute';
 
 dotenv.config();
 
@@ -60,6 +61,8 @@ app.use('/workDay/timeEntries', timeEntry);
 app.use("/workDay/notifications", notificationRoutes);
 // admin Routes
 app.use('/workDay/admin', adminRouter);
+// Shift Group routes
+app.use('/workDay/shiftGroups', shiftGroupRouter);
 // Basic health check
 app.get('/', (req, res) => {
   res.send('Workday backend is running!');

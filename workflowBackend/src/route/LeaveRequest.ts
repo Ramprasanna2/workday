@@ -1,6 +1,6 @@
 // src/route/leaveRequest.ts
 import express from 'express';
-import { createLeaveRequest, getAllLeaveRequests, updateLeaveStatus } from '../service/leaveRequestService';
+import { createLeaveRequest, getAllLeaveRequests, updateLeaveStatus, getLeaveRequestsByEmployee, getPendingLeaveRequestsByManager } from '../service/leaveRequestService';
 import {LeaveRequest} from '../model/model';
 
 const router = express.Router();
@@ -56,6 +56,38 @@ router.get('/employee/:employeeId/date/:date', async (req, res) => {
     res.json(leaves);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Get leave requests by employee
+router.get('/employee/:employeeId', async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    console.log('Getting leave requests for employee:', employeeId);
+    
+    const leaveRequests = await getLeaveRequestsByEmployee(employeeId);
+    console.log('Found leave requests:', leaveRequests.length);
+    
+    res.json(leaveRequests);
+  } catch (err: any) {
+    console.error('Error getting leave requests by employee:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get pending leave requests by manager
+router.get('/manager/:managerId/pending', async (req, res) => {
+  try {
+    const { managerId } = req.params;
+    console.log('Getting pending leave requests for manager:', managerId);
+    
+    const pendingRequests = await getPendingLeaveRequestsByManager(managerId);
+    console.log('Found pending leave requests:', pendingRequests.length);
+    
+    res.json(pendingRequests);
+  } catch (err: any) {
+    console.error('Error getting pending leave requests by manager:', err);
+    res.status(400).json({ error: err.message });
   }
 });
 

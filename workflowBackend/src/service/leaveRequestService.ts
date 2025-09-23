@@ -37,3 +37,42 @@ export const updateLeaveStatus = async (
     { new: true }
   ).populate('employeeId');
 };
+
+export const getLeaveRequestsByEmployee = async (employeeId: string) => {
+  try {
+    console.log('Service: Getting leave requests for employee:', employeeId);
+
+    const requests = await LeaveRequest.find({
+      employeeId: new mongoose.Types.ObjectId(employeeId),
+    })
+      .populate('employeeId', 'name email')
+      .populate('managerId', 'name email')
+      .sort({ createdAt: -1 }); // Most recent first
+
+    console.log('Service: Found leave requests:', requests.length);
+    return requests;
+  } catch (error) {
+    console.error('Service error getting leave requests by employee:', error);
+    throw error;
+  }
+};
+
+export const getPendingLeaveRequestsByManager = async (managerId: string) => {
+  try {
+    console.log('Service: Getting pending leave requests for manager:', managerId);
+
+    const pendingRequests = await LeaveRequest.find({
+      managerId: new mongoose.Types.ObjectId(managerId),
+      status: 'Pending',
+    })
+      .populate('employeeId', 'firstName lastName email')
+      .populate('managerId', 'firstName lastName email')
+      .sort({ createdAt: -1 });
+
+    console.log('Service: Found pending leave requests:', pendingRequests.length);
+    return pendingRequests;
+  } catch (error) {
+    console.error('Service error getting pending leave requests by manager:', error);
+    throw error;
+  }
+};

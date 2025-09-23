@@ -313,6 +313,12 @@ const [notifications, setNotifications] = useState<Notification[]>([]);
     fetchNotifications();
   }, [userId]);
 
+  // Add this function to refresh the parent dashboard
+  const refreshDashboardBadge = () => {
+    // Dispatch custom event to refresh dashboard
+    window.dispatchEvent(new CustomEvent('refreshNotificationBadge'));
+  };
+
   const markAsRead = async (id: string) => {
     try {
       await fetch(`http://localhost:5000/workDay/notifications/${id}/read`, { method: "POST" });
@@ -321,6 +327,8 @@ const [notifications, setNotifications] = useState<Notification[]>([]);
           notification.id === id ? { ...notification, read: true } : notification
         )
       );
+      // Refresh dashboard badge
+      refreshDashboardBadge();
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -330,6 +338,8 @@ const [notifications, setNotifications] = useState<Notification[]>([]);
     try {
       await fetch(`http://localhost:5000/workDay/notifications/markAllRead/${userId}`, { method: "PUT" });
       setNotifications(prev => prev.map(notification => ({ ...notification, read: true })));
+      // Refresh dashboard badge
+      refreshDashboardBadge();
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
     }

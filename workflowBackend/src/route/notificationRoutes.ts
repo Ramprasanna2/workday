@@ -88,4 +88,21 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// Get unread notification count for employee
+router.get('/employee/:employeeId/unread-count', async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    
+    const count = await Notification.countDocuments({
+      receiverId: employeeId,  // Use receiverId instead of employeeId
+      read: false
+    });
+    
+    res.json({ count });
+  } catch (error: any) {
+    console.error('Error getting unread notification count:', error);
+    res.status(500).json({ message: error.message || 'Failed to get unread count' });
+  }
+});
+
 export default router;

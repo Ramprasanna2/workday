@@ -4,7 +4,8 @@ import {
   updateMultipleModuleStatus,
   getEmployeeGoals,
   getAssignedGoals,
-  deleteGoal
+  deleteGoal,
+  getGoalsByEmployee
 } from '../service/goalService';
 
 const router = express.Router();
@@ -23,5 +24,16 @@ router.get('/assigned/:managerId', getAssignedGoals);
 
 // Delete a goal
 router.delete('/:goalId', deleteGoal);
+
+// Add this route if it doesn't exist
+router.get('/employee/:employeeId', async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const goals = await getGoalsByEmployee(employeeId);
+    res.json(goals);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 export default router;

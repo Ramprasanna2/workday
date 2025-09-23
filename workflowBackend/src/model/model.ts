@@ -443,6 +443,35 @@ const NotificationSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Add this ShiftGroup schema after the existing schemas
+const ShiftGroupSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  managerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+    required: true,
+    index: true
+  },
+  employees: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  }],
+  description: {
+    type: String,
+    trim: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, { timestamps: true });
+
+ShiftGroupSchema.index({ managerId: 1, name: 1 }, { unique: true });
+
 const Employee = mongoose.model('Employee', EmployeeSchema);
 const Location = mongoose.model('Location', LocationSchema);
 const Department = mongoose.model('Department', DepartmentSchema);
@@ -454,6 +483,7 @@ const Goal = mongoose.model('Goal', GoalSchema);
 const Checkin = mongoose.model('Checkin', CheckinSchema);
 const Payslip = mongoose.model('Payslip', PayslipSchema);
 const Notification = mongoose.model<INotification>("Notification", NotificationSchema);
+const ShiftGroup = mongoose.model('ShiftGroup', ShiftGroupSchema);
 
 export {
   Employee,
@@ -466,5 +496,6 @@ export {
   Goal,
   Checkin,
   Payslip,
-  Notification
+  Notification,
+  ShiftGroup
 };

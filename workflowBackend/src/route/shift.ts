@@ -10,11 +10,26 @@ import {  createShift,
   approveOpenShift,
   rejectOpenShift,
    revokeOpenShift,  
-getUpcomingOpenShiftsByManager } from '../service/shiftService';
+getUpcomingOpenShiftsByManager,
+getPendingShiftRequestsByManager } from '../service/shiftService';
 import mongoose from 'mongoose';
 import { Shift } from '../model/model';
 
 const router = express.Router();
+
+router.post('/deleting/:id', async (req, res) => {
+  try {
+    console.log("executed")
+    await Shift.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Shift deleted' }); 
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.get("/",(req,res)=>{
+  res.send("hello");
+})
 
 // Create a shift
 router.post('/', async (req, res) => {
@@ -154,5 +169,22 @@ router.get('/employee/:id/date/:date', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Get pending shift requests by manager
+router.get('/manager/:managerId/pending', async (req, res) => {
+  try {
+    const { managerId } = req.params;
+    console.log('Getting pending shift requests for manager:', managerId);
+    
+    const pendingShifts = await getPendingShiftRequestsByManager(managerId);
+    console.log('Found pending shift requests:', pendingShifts.length);
+    
+    res.json(pendingShifts);
+  } catch (err: any) {
+    console.error('Error getting pending shift requests by manager:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 
 export default router;

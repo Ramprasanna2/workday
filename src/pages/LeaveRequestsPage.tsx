@@ -147,6 +147,23 @@ export const LeaveRequestsPage: React.FC = () => {
     }
   };
 
+  // Add this helper function to refresh leave request badge
+  const refreshLeaveRequestBadge = () => {
+    window.dispatchEvent(new CustomEvent('refreshLeaveRequestBadge'));
+  };
+
+  // Call this function after submitting/updating leave requests
+  const handleSubmitLeaveRequest = async (requestData: any) => {
+    try {
+      // ... existing leave request submission logic
+
+      // Refresh the badge
+      refreshLeaveRequestBadge();
+    } catch (error) {
+      console.error('Error submitting leave request:', error);
+    }
+  };
+
   const getStatusBadge = (status: LeaveRequest['status']) => {
     const variants = {
       pending: { variant: 'secondary' as const, icon: AlertCircle },

@@ -1,13 +1,28 @@
 import express from 'express';
-import { clockIn, clockOut, getEmployeeTimeEntries, getAllTimeEntries,getEmployeeTimeEntriesForDay } from '../service/timeEntryService';
+import { clockIn, clockOut, getTimeEntriesForEmployee, getTimeEntriesByDate } from '../service/timeEntryService';
 
 const router = express.Router();
+
+// Get time entries for employee by date
+router.get('/employee/:employeeId/date/:date', async (req, res) => {
+  try {
+    const { employeeId, date } = req.params;
+    
+    const entries = await getTimeEntriesByDate(employeeId, date);
+ 
+    
+    res.json(entries);
+  } catch (err: any) {
+    console.error('Error getting time entries by date:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
 
 // Employee clock-in
 router.post('/clockin', async (req, res) => {
   try {
     const entry = await clockIn(req.body);
-    res.status(201).json(entry);
+    res.json(entry);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -16,47 +31,20 @@ router.post('/clockin', async (req, res) => {
 // Employee clock-out
 router.post('/clockout/:id', async (req, res) => {
   try {
-    const entry = await clockOut(req.params.id, new Date());
+    const entry = await clockOut(req.params.id, req.body);
     res.json(entry);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 });
 
-// Get all time entries of a specific employee
-router.get('/employee/:id', async (req, res) => {
+// Get all time entries for employee
+router.get('/employee/:employeeId', async (req, res) => {
   try {
-    const entries = await getEmployeeTimeEntries(req.params.id);
+    const entries = await getTimeEntriesForEmployee(req.params.employeeId);
     res.json(entries);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// HR/Manager - Get all employees’ check-in/out
-router.get('/all', async (req, res) => {
-  try {
-    const entries = await getAllTimeEntries();
-    res.json(entries);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get time entries for a particular employee on a particular day
-router.get('/employee/:id/date/:date', async (req, res) => {
-  try {
-    const { id, date } = req.params;
-    // Parse date and set range for the day
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(date);
-    end.setHours(23, 59, 59, 999);
-
-    const entries = await getEmployeeTimeEntriesForDay(id, start, end);
-    res.json(entries);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 });
 

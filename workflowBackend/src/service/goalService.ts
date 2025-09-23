@@ -1,5 +1,5 @@
-import { Goal } from '../model/model';
 import mongoose from 'mongoose';
+import { Goal } from '../model/model';
 
 interface GoalData {
   employeeId: string;
@@ -124,5 +124,25 @@ export const deleteGoal = async (req: any, res: any) => {
     res.status(200).json({ message: "Goal deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting goal", error });
+  }
+};
+
+// Add this function if it doesn't exist
+export const getGoalsByEmployee = async (employeeId: string) => {
+  try {
+    console.log('Service: Getting goals for employee:', employeeId);
+    
+    const goals = await Goal.find({
+      employeeId: new mongoose.Types.ObjectId(employeeId)
+    })
+    .populate('employeeId', 'name email')
+    .populate('managerId', 'name email')
+    .sort({ createdAt: -1 });
+    
+    console.log('Service: Found goals:', goals.length);
+    return goals;
+  } catch (error) {
+    console.error('Service error getting goals by employee:', error);
+    throw error;
   }
 };
