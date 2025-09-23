@@ -81,7 +81,7 @@ const shiftTypes = [
     type: 'morning', 
     name: 'Morning Shift', 
     startTime: '09:00', 
-    endTime: '17:00', 
+    endTime: '15:00', 
     color: 'bg-yellow-500 text-white', 
     icon: Sun,
     displayTime: '14:30 - 22:30 IST' // Pre-calculated IST for display
@@ -89,7 +89,7 @@ const shiftTypes = [
   { 
     type: 'afternoon', 
     name: 'Afternoon Shift', 
-    startTime: '13:00', 
+    startTime: '16:00', 
     endTime: '21:00', 
     color: 'bg-blue-500 text-white', 
     icon: Sunset,
@@ -98,7 +98,7 @@ const shiftTypes = [
   { 
     type: 'night', 
     name: 'Night Shift', 
-    startTime: '21:00', 
+    startTime: '22:00', 
     endTime: '05:00', 
     color: 'bg-purple-500 text-white', 
     icon: Moon,

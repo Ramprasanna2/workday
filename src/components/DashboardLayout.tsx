@@ -600,6 +600,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       { href: '/dashboard/payroll', label: 'Payroll', icon: DollarSign, roles: ['Manager', 'Admin'] },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['Manager', 'Admin'] },
       { href: '/dashboard/shift-management', label: 'Shift Management', icon: Calendar, roles: ['Manager', 'Admin'] },
+       { href: '/dashboard/payslips', label: 'Payslips', icon: Calendar, roles: ['Manager', 'Admin'] },
     ];
 
     const adminItems = [
