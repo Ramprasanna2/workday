@@ -148,7 +148,7 @@ export const createPayslip = async (req: any, res: any) => {
       overtimeHours: result.overtimeHours,
       overtimeRate: result.overtimeRate,
       finalBill: result.finalBill,
-      status: "draft"
+      status: "draft" 
     });
 
     const savedPayslip = await payslip.save();
