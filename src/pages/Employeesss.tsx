@@ -68,6 +68,13 @@ interface Employee {
   compensation?: {
     wage: number;
     payPeriod: string;
+    deductions?: {
+      tax?: number;
+      socialSecurity?: number;
+      medicare?: number;
+      insurance?: number;
+      retirement?: number;
+    };
   };
   createdAt: string;
 }
@@ -109,6 +116,13 @@ interface EmployeeForm {
   compensation: {
     wage: number;
     payPeriod: string;
+    deductions: {
+      tax: number;
+      socialSecurity: number;
+      medicare: number;
+      insurance: number;
+      retirement: number;
+    };
   };
 }
 
@@ -163,6 +177,13 @@ const EmployeeListPage: React.FC = () => {
     compensation: {
       wage: 0,
       payPeriod: 'Annual',
+      deductions: {
+        tax: 0,
+        socialSecurity: 0,
+        medicare: 0,
+        insurance: 0,
+        retirement: 0,
+      },
     },
   });
 
@@ -202,6 +223,13 @@ const EmployeeListPage: React.FC = () => {
     compensation: {
       wage: 0,
       payPeriod: 'Annual',
+      deductions: {
+        tax: 0,
+        socialSecurity: 0,
+        medicare: 0,
+        insurance: 0,
+        retirement: 0,
+      },
     },
   });
   const [editActiveTab, setEditActiveTab] = useState('personal');
@@ -242,6 +270,13 @@ const EmployeeListPage: React.FC = () => {
       compensation: {
         wage: employee.compensation?.wage || 0,
         payPeriod: employee.compensation?.payPeriod || 'Annual',
+        deductions: {
+          tax: employee.compensation?.deductions?.tax || 0,
+          socialSecurity: employee.compensation?.deductions?.socialSecurity || 0,
+          medicare: employee.compensation?.deductions?.medicare || 0,
+          insurance: employee.compensation?.deductions?.insurance || 0,
+          retirement: employee.compensation?.deductions?.retirement || 0,
+        },
       },
     });
     
@@ -372,6 +407,13 @@ const EmployeeListPage: React.FC = () => {
       compensation: {
         wage: 0,
         payPeriod: 'Annual',
+        deductions: {
+          tax: 0,
+          socialSecurity: 0,
+          medicare: 0,
+          insurance: 0,
+          retirement: 0,
+        },
       },
     });
     setEditActiveTab('personal');
@@ -679,6 +721,13 @@ const EmployeeListPage: React.FC = () => {
       compensation: {
         wage: 0,
         payPeriod: 'Annual',
+        deductions: {
+          tax: 0,
+          socialSecurity: 0,
+          medicare: 0,
+          insurance: 0,
+          retirement: 0,
+        },
       },
     });
   };
@@ -761,7 +810,7 @@ const EmployeeListPage: React.FC = () => {
             
             <form onSubmit={handleCreateEmployee} className="space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="personal">Personal</TabsTrigger>
                   <TabsTrigger 
                     value="contact" 
@@ -780,6 +829,12 @@ const EmployeeListPage: React.FC = () => {
                     disabled={!employeeForm.jobInfo.departmentId || !employeeForm.jobInfo.positionId}
                   >
                     Compensation
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="deductions"
+                    disabled={!employeeForm.jobInfo.departmentId || !employeeForm.jobInfo.positionId}
+                  >
+                    Deductions
                   </TabsTrigger>
                 </TabsList>
 
@@ -1079,6 +1134,51 @@ const EmployeeListPage: React.FC = () => {
                     </Select>
                   </div>
                 </TabsContent>
+
+                <TabsContent value="deductions" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Tax</Label>
+                      <Input
+                        type="number"
+                        value={employeeForm.compensation.deductions.tax}
+                        onChange={(e) => updateEmployeeForm('compensation.deductions.tax', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Social Security</Label>
+                      <Input
+                        type="number"
+                        value={employeeForm.compensation.deductions.socialSecurity}
+                        onChange={(e) => updateEmployeeForm('compensation.deductions.socialSecurity', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Medicare</Label>
+                      <Input
+                        type="number"
+                        value={employeeForm.compensation.deductions.medicare}
+                        onChange={(e) => updateEmployeeForm('compensation.deductions.medicare', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Insurance</Label>
+                      <Input
+                        type="number"
+                        value={employeeForm.compensation.deductions.insurance}
+                        onChange={(e) => updateEmployeeForm('compensation.deductions.insurance', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Retirement</Label>
+                      <Input
+                        type="number"
+                        value={employeeForm.compensation.deductions.retirement}
+                        onChange={(e) => updateEmployeeForm('compensation.deductions.retirement', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
               </Tabs>
 
               <div className="flex justify-end space-x-2 pt-4 border-t">
@@ -1220,11 +1320,12 @@ const EmployeeListPage: React.FC = () => {
                 
                 <form onSubmit={handleUpdateEmployee} className="space-y-6">
                   <Tabs value={editActiveTab} onValueChange={setEditActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
+                    <TabsList className="grid w-full grid-cols-5">
                       <TabsTrigger value="personal">Personal</TabsTrigger>
                       <TabsTrigger value="contact">Contact</TabsTrigger>
                       <TabsTrigger value="job">Job Info</TabsTrigger>
                       <TabsTrigger value="compensation">Compensation</TabsTrigger>
+                      <TabsTrigger value="deductions">Deductions</TabsTrigger>
                     </TabsList>
       
                     <TabsContent value="personal" className="space-y-4">
@@ -1522,6 +1623,51 @@ const EmployeeListPage: React.FC = () => {
                             <SelectItem value="Monthly">Monthly</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="deductions" className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Tax</Label>
+                          <Input
+                            type="number"
+                            value={editForm.compensation.deductions.tax}
+                            onChange={(e) => updateEditForm('compensation.deductions.tax', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div>
+                          <Label>Social Security</Label>
+                          <Input
+                            type="number"
+                            value={editForm.compensation.deductions.socialSecurity}
+                            onChange={(e) => updateEditForm('compensation.deductions.socialSecurity', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div>
+                          <Label>Medicare</Label>
+                          <Input
+                            type="number"
+                            value={editForm.compensation.deductions.medicare}
+                            onChange={(e) => updateEditForm('compensation.deductions.medicare', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div>
+                          <Label>Insurance</Label>
+                          <Input
+                            type="number"
+                            value={editForm.compensation.deductions.insurance}
+                            onChange={(e) => updateEditForm('compensation.deductions.insurance', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div>
+                          <Label>Retirement</Label>
+                          <Input
+                            type="number"
+                            value={editForm.compensation.deductions.retirement}
+                            onChange={(e) => updateEditForm('compensation.deductions.retirement', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
                       </div>
                     </TabsContent>
                   </Tabs>

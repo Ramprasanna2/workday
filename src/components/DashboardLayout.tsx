@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   LogOut,
-  Building
+  Building,
+  Briefcase // Add an icon for Recruitment
 } from 'lucide-react';
 import { cn } from '../components/ui/utils';
 import { Button } from '../components/ui/button';
@@ -596,9 +597,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         roles: ['Manager', 'Admin'],
         pendingCount: pendingApprovalsCount // Add pending approvals count
       },
-      { href: '/dashboard/payroll', label: 'Payroll', icon: DollarSign, roles: ['Manager', 'Admin'] },
+      { href: '/dashboard/payroll', label: 'Payroll', icon: DollarSign, roles: ['Admin','Employee','Manager'] },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['Manager', 'Admin'] },
       { href: '/dashboard/shift-management', label: 'Shift Management', icon: Calendar, roles: ['Manager', 'Admin'] },
+       { href: '/dashboard/payslips', label: 'Payslips', icon: Calendar, roles: ['Manager', 'Admin'] },
     ];
 
     const adminItems = [
@@ -607,6 +609,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['Admin'] }, 
       { href: '/dashboard/employeees', label: 'Employee Create', icon: Users, roles: ['Admin'] },
       { href: '/dashboard/departments', label: 'Departments & Positions', icon: Building, roles: ['Admin'] },
+      { href: '/dashboard/recruitment', label: 'Recruitment', icon: Briefcase, roles: ['Manager'] },
     ];
 
     const notificationItem = [

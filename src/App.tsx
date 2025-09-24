@@ -28,6 +28,8 @@ import { GoalManagementPage}  from './pages/GoalManagementPage';
 import { MyGoalsPage } from './pages/MyGoalsPage';
 import  DepartmentPositionPage  from './pages/Departmentss';
 import EmployeeManagementPage from './pages/Employeesss'
+import RecruitmentPage from './pages/RecruitmentPage';
+import { RecruitmentOnboardingPage } from './pages/RecruitmentOnboardingPage'; // <-- Import onboarding page
 
 
 const AboutPage = () => (
@@ -246,6 +248,23 @@ export default function App() {
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
                   <EmployeeManagementPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+ {/* Admin Recruitment main page */}
+            <Route path="/dashboard/recruitment" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <DashboardLayout>
+                  <RecruitmentPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* Admin Recruitment Onboarding page */}
+            <Route path="/dashboard/recruiting/onboarding" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <DashboardLayout>
+                  <RecruitmentOnboardingPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } />
