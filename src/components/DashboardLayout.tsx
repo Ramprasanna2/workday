@@ -530,14 +530,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       .slice(0, 2);
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'Admin': return 'bg-red-100 text-red-800';
-      case 'Manager': return 'bg-blue-100 text-blue-800';
-      case 'Employee': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  
 
   const getMenuItems = () => {
     const baseItems = [
@@ -691,9 +684,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user?.name}
               </p>
-              <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-medium ${getRoleBadgeColor(user?.role || '')}`}>
-                {user?.role}
-              </span>
+              
             </div>
           </div>
         </div>

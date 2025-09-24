@@ -84,7 +84,7 @@ const shiftTypes = [
     endTime: '15:00', 
     color: 'bg-yellow-500 text-white', 
     icon: Sun,
-    displayTime: '14:30 - 22:30 IST' // Pre-calculated IST for display
+    displayTime: '14:30 - 22:30 IST'
   },
   { 
     type: 'afternoon', 
@@ -118,8 +118,6 @@ export const ShiftManagementPage: React.FC = () => {
   const [weeklyShifts, setWeeklyShifts] = useState<{ [key: string]: Shift[] }>({});
   const [pendingShifts, setPendingShifts] = useState<Shift[]>([]);
   const [editingShift, setEditingShift] = useState<{ employeeId: string; date: string; shift?: Shift } | null>(null);
-
-  // ADD THIS MISSING STATE
   const [pendingAssignments, setPendingAssignments] = useState<{ [key: string]: Shift[] }>({});
 
   // Group management states
@@ -154,83 +152,13 @@ export const ShiftManagementPage: React.FC = () => {
   // Drag and drop state
   const [draggedShift, setDraggedShift] = useState<{ type: string; startTime: string; endTime: string; name: string } | null>(null);
 
-  // Fetch employees
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const res = await fetch(`http://localhost:5000/workDay/employees/${user?.employeeId}/team`);
-        if (!res.ok) throw new Error('Failed to fetch employees');
-        const data = await res.json();
-        setEmployees(data);
-      } catch (error) {
-        console.error('Error fetching employees:', error);
-        toast.error('Failed to fetch employees');
-      }
-    };
-    if (user?.employeeId) fetchEmployees();
-  }, [user?.employeeId]);
-
-  // Fetch shift groups
-  useEffect(() => {
-    const fetchShiftGroups = async () => {
-      try {
-        const res = await fetch(`http://localhost:5000/workDay/shiftGroups/manager/${user?.employeeId}`);
-        if (!res.ok) throw new Error('Failed to fetch shift groups');
-        const data = await res.json();
-        setShiftGroups(data);
-      } catch (error) {
-        console.error('Error fetching shift groups:', error);
-        toast.error('Failed to fetch shift groups');
-      }
-    };
-    if (user?.employeeId) fetchShiftGroups();
-  }, [user?.employeeId]);
-
-  // Fetch shifts for selected group and week
-  useEffect(() => {
-    const fetchGroupShifts = async () => {
-      if (!selectedGroup) return;
-      
-      const weekDates = getWeekDates(currentWeek);
-      const startDate = weekDates[0].toISOString().split('T')[0];
-      const endDate = weekDates[6].toISOString().split('T')[0];
-      
-      const shiftsData: { [key: string]: Shift[] } = {};
-      
-      for (const employee of selectedGroup.employees) {
-        try {
-          const res = await fetch(`http://localhost:5000/workDay/shifts/employee/${employee._id}`);
-          if (res.ok) {
-            const employeeShifts = await res.json();
-            // Filter shifts for current week
-            const weekShifts = employeeShifts.filter((shift: any) => {
-              const shiftDate = new Date(shift.date).toISOString().split('T')[0];
-              return shiftDate >= startDate && shiftDate <= endDate;
-            });
-            shiftsData[employee._id] = weekShifts;
-          }
-        } catch (error) {
-          console.error(`Error fetching shifts for employee ${employee._id}:`, error);
-        }
-      }
-      
-      setWeeklyShifts(shiftsData);
-    };
-
-    fetchGroupShifts();
-  }, [selectedGroup, currentWeek]);
-
- 
-
-  // Helper functions - add these after your state declarations
+  // Helper functions
   const convertToIST = (timeString: string): string => {
     if (!timeString || typeof timeString !== 'string') return '';
     
     try {
-      // Handle both "HH:MM" and full datetime strings
       let timeToConvert = timeString;
       
-      // If it's a full datetime string, extract just the time part
       if (timeString.includes('T') || timeString.length > 8) {
         const dateObj = new Date(timeString);
         if (!isNaN(dateObj.getTime())) {
@@ -238,50 +166,28 @@ export const ShiftManagementPage: React.FC = () => {
         }
       }
       
-      // Parse time string
       const timeMatch = timeToConvert.match(/(\d{1,2}):(\d{2})/);
-      if (!timeMatch) return timeString; // Return original if can't parse
+      if (!timeMatch) return timeString;
       
       const [, hourStr, minuteStr] = timeMatch;
       let hours = parseInt(hourStr, 10);
       let minutes = parseInt(minuteStr, 10);
       
-      // Add 5 hours 30 minutes for IST
+      minutes += 30;
+      hours += 5;
       
-      
-      // Handle minute overflow
       if (minutes >= 60) {
         hours += Math.floor(minutes / 60);
         minutes = minutes % 60;
       }
       
-      // Handle hour overflow (24-hour format)
       hours = hours % 24;
       
-      // Format with leading zeros
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     } catch (error) {
       console.error('Error converting time to IST:', error);
-      return timeString; // Return original on error
+      return timeString;
     }
-  };
-
-  const formatTimeToIST = (timeString: string): string => {
-    if (!timeString) return '';
-    
-    // Parse the time string (assuming it's in HH:MM format)
-    const [hours, minutes] = timeString.split(':').map(Number);
-    
-    // Create a date object for today with the given time
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    
-    // Add 5 hours and 30 minutes for IST conversion
-    date.setHours(date.getHours() + 5);
-    date.setMinutes(date.getMinutes() + 30);
-    
-    // Format back to HH:MM
-    return date.toTimeString().slice(0, 5);
   };
 
   const getShiftForEmployeeAndDate = (employeeId: string, date: Date): Shift | undefined => {
@@ -303,7 +209,29 @@ export const ShiftManagementPage: React.FC = () => {
     };
   };
 
-  
+  const getWeekDates = (date: Date): Date[] => {
+    const week: Date[] = [];
+    const startOfWeek = new Date(date);
+    
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day;
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(startOfWeek);
+      dayDate.setDate(startOfWeek.getDate() + i);
+      week.push(dayDate);
+    }
+    
+    return week;
+  };
+
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newWeek = new Date(currentWeek);
+    newWeek.setDate(currentWeek.getDate() + (direction === 'next' ? 7 : -7));
+    setCurrentWeek(newWeek);
+  };
 
   // Fetch employees
   useEffect(() => {
@@ -353,7 +281,6 @@ export const ShiftManagementPage: React.FC = () => {
           const res = await fetch(`http://localhost:5000/workDay/shifts/employee/${employee._id}`);
           if (res.ok) {
             const employeeShifts = await res.json();
-            // Filter shifts for current week
             const weekShifts = employeeShifts.filter((shift: any) => {
               const shiftDate = new Date(shift.date).toISOString().split('T')[0];
               return shiftDate >= startDate && shiftDate <= endDate;
@@ -370,36 +297,6 @@ export const ShiftManagementPage: React.FC = () => {
 
     fetchGroupShifts();
   }, [selectedGroup, currentWeek]);
-
-  const getWeekDates = (date: Date): Date[] => {
-    const week: Date[] = [];
-    const startOfWeek = new Date(date);
-    
-    // Get the Sunday of this week (day 0)
-    const day = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - day;
-    startOfWeek.setDate(diff);
-    
-    // Reset time to midnight to avoid timezone issues
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    console.log('Week start date:', startOfWeek.toISOString()); // Debug log
-    
-    for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(startOfWeek);
-      dayDate.setDate(startOfWeek.getDate() + i);
-      week.push(dayDate);
-      console.log(`Day ${i} (${weekDays[i]}):`, dayDate.toISOString().split('T')[0]); // Debug log
-    }
-    
-    return week;
-  };
-
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    const newWeek = new Date(currentWeek);
-    newWeek.setDate(currentWeek.getDate() + (direction === 'next' ? 7 : -7));
-    setCurrentWeek(newWeek);
-  };
 
   // Group management functions
   const handleCreateGroup = () => {
@@ -498,7 +395,7 @@ export const ShiftManagementPage: React.FC = () => {
       startTime: '09:00',
       endTime: '17:00',
       breakTimeInMinutes: 0,
-      selectedDays: [1, 2, 3, 4, 5], // Default to weekdays
+      selectedDays: [1, 2, 3, 4, 5],
       customName: ''
     });
     setIsBulkAssignOpen(true);
@@ -519,7 +416,6 @@ export const ShiftManagementPage: React.FC = () => {
         const date = weekDates[dayIndex];
         const dateString = date.toISOString().split('T')[0];
         
-        // Check if shift already exists
         const existingShifts = weeklyShifts[employee._id] || [];
         const hasShiftOnDate = existingShifts.some(shift => 
           new Date(shift.date).toISOString().split('T')[0] === dateString
@@ -557,6 +453,7 @@ export const ShiftManagementPage: React.FC = () => {
 
     if (successCount > 0) {
       toast.success(`${successCount} shifts assigned successfully`);
+      
       // Refresh shifts
       const shiftsData: { [key: string]: Shift[] } = {};
       for (const employee of selectedGroup.employees) {
@@ -611,24 +508,17 @@ export const ShiftManagementPage: React.FC = () => {
     if (!editingShift) return;
 
     try {
-      // Ensure startTime and endTime are on the same date as 'date' (decremented by 5.5 hours)
-      // Also increment the date by 1 day as requested
       const baseDate = new Date(editingShift.date);
       baseDate.setDate(baseDate.getDate() + 1);
 
-      // Parse the start and end times
       const [startHour, startMinute] = editShiftForm.startTime.split(':').map(Number);
       const [endHour, endMinute] = editShiftForm.endTime.split(':').map(Number);
 
-      // Create start and end Date objects in local time
       const startDateTime = new Date(baseDate);
       startDateTime.setHours(startHour, startMinute, 0, 0);
-      // Subtract 5 hours 30 minutes
-      startDateTime.setMinutes(startDateTime.getMinutes());
 
       const endDateTime = new Date(baseDate);
       endDateTime.setHours(endHour, endMinute, 0, 0);
-      endDateTime.setMinutes(endDateTime.getMinutes() );
 
       const dateString = baseDate.toISOString().split('T')[0];
       const startTime = startDateTime.toISOString();
@@ -646,14 +536,12 @@ export const ShiftManagementPage: React.FC = () => {
 
       let res;
       if (editingShift.shift?._id) {
-        // Update existing shift
         res = await fetch(`http://localhost:5000/workDay/shifts/update/${editingShift.shift._id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       } else {
-        // Create new shift
         res = await fetch('http://localhost:5000/workDay/shifts/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -718,9 +606,6 @@ export const ShiftManagementPage: React.FC = () => {
     
     if (!draggedShift) return;
 
-    console.log('Dropping shift for date:', dateString); // Debug log
-
-    // Check if shift already exists
     const existingShifts = weeklyShifts[employeeId] || [];
     const existingPending = pendingAssignments[employeeId] || [];
     
@@ -738,17 +623,14 @@ export const ShiftManagementPage: React.FC = () => {
       return;
     }
 
-    // Create pending assignment with the EXACT date passed
     const pendingShift: Shift = {
       employeeId: employeeId,
-      date: dateString, // Use the exact dateString passed to this function
+      date: dateString,
       startTime: draggedShift.startTime,
       endTime: draggedShift.endTime,
       type: draggedShift.type as any,
       breakTimeInMinutes: 0
     };
-
-    console.log('Creating pending shift:', pendingShift); // Debug log
 
     setPendingAssignments(prev => ({
       ...prev,
@@ -759,7 +641,6 @@ export const ShiftManagementPage: React.FC = () => {
     setDraggedShift(null);
   };
 
-  // Add function to publish all pending assignments
   const handlePublishSchedule = async () => {
     if (Object.keys(pendingAssignments).length === 0) {
       toast.error('No pending assignments to publish');
@@ -774,8 +655,7 @@ export const ShiftManagementPage: React.FC = () => {
         const payload = {
           employeeId: shift.employeeId,
           managerId: user?.employeeId,
-          date: new Date(new Date(shift.date).setDate(new Date(shift.date).getDate() + 1))
-,
+          date: new Date(new Date(shift.date).setDate(new Date(shift.date).getDate() + 1)).toISOString().split('T')[0],
           startTime: shift.startTime,
           endTime: shift.endTime,
           breakTimeInMinutes: shift.breakTimeInMinutes || 0,
@@ -803,10 +683,8 @@ export const ShiftManagementPage: React.FC = () => {
     if (successCount > 0) {
       toast.success(`${successCount} shifts published successfully`);
       
-      // Clear pending assignments
       setPendingAssignments({});
       
-      // Refresh shifts display
       if (selectedGroup) {
         const weekDates = getWeekDates(currentWeek);
         const startDate = weekDates[0].toISOString().split('T')[0];
@@ -835,22 +713,17 @@ export const ShiftManagementPage: React.FC = () => {
     }
   };
 
-
-  // Clear pending assignments function
   const handleClearPending = () => {
     setPendingAssignments({});
     toast.success('Pending assignments cleared');
   };
 
-  // Update the shift cell rendering to show pending assignments
   const getShiftOrPendingForEmployeeAndDate = (employeeId: string, date: Date) => {
     const dateString = date.toISOString().split('T')[0];
     
-    // Check for published shift first
     const publishedShift = getShiftForEmployeeAndDate(employeeId, date);
     if (publishedShift) return { type: 'published', shift: publishedShift };
     
-    // Check for pending assignment
     const pendingShifts = pendingAssignments[employeeId] || [];
     const pendingShift = pendingShifts.find(shift => 
       new Date(shift.date).toISOString().split('T')[0] === dateString
@@ -860,18 +733,17 @@ export const ShiftManagementPage: React.FC = () => {
     
     return null;
   };
-   //delleting shift
-    const handleDeleteShift = async (shift: Shift) => {
+
+  const handleDeleteShift = async (shift: Shift) => {
     if (!shift._id) return;
     try {
-      console.log(shift)
       const res = await fetch(`http://localhost:5000/workDay/shifts/deleting/${shift._id}`, { method: 'POST' });
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || 'Failed to delete shift');
       }
       toast.success('Shift deleted');
-      // Refresh shifts for the selected group
+      
       if (selectedGroup) {
         const weekDates = getWeekDates(currentWeek);
         const startDate = weekDates[0].toISOString().split('T')[0];
@@ -1091,7 +963,7 @@ export const ShiftManagementPage: React.FC = () => {
     );
   }
 
-  // Schedule View with PROPER COLUMN LAYOUT
+  // Schedule View
   return (
     <div className="space-y-6">
       <UniversalBackButton />
@@ -1121,7 +993,6 @@ export const ShiftManagementPage: React.FC = () => {
             </Breadcrumb>
           </div>
           <div className="flex items-center space-x-2">
-            {/* Add Publish button to main header */}
             {Object.keys(pendingAssignments).length > 0 && (
               <Button 
                 onClick={handlePublishSchedule}
@@ -1187,7 +1058,7 @@ export const ShiftManagementPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* PROPER COLUMN-BASED Weekly Schedule */}
+        {/* Weekly Schedule */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -1208,7 +1079,7 @@ export const ShiftManagementPage: React.FC = () => {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0"> {/* Remove default padding */}
+          <CardContent className="p-0">
             {!selectedGroup ? (
               <div className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -1216,9 +1087,8 @@ export const ShiftManagementPage: React.FC = () => {
               </div>
             ) : (
               <div className="w-full overflow-x-auto">
-                {/* FULL-WIDTH COLUMN LAYOUT */}
                 <div className="flex min-w-full">
-                  {/* Employee Names Column - Fixed width */}
+                  {/* Employee Names Column */}
                   <div className="flex flex-col w-48 flex-shrink-0 p-4">
                     <div className="h-16 flex items-center justify-center font-medium bg-gray-100 rounded-lg mb-2">
                       Employee
@@ -1238,7 +1108,7 @@ export const ShiftManagementPage: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Days Columns - Flex to fill remaining space */}
+                  {/* Days Columns */}
                   <div className="flex flex-1">
                     {weekDays.map((day, dayIndex) => {
                       const date = getWeekDates(currentWeek)[dayIndex];
@@ -1246,7 +1116,6 @@ export const ShiftManagementPage: React.FC = () => {
                       
                       return (
                         <div key={day} className="flex flex-col flex-1 px-2">
-                          {/* Day Header */}
                           <div
                             className={cn(
                               "h-16 p-2 mb-2 rounded-lg flex flex-col items-center justify-center text-center",
@@ -1261,13 +1130,9 @@ export const ShiftManagementPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Employee Shift Cells for this day */}
                           {selectedGroup.employees.map((employee) => {
                             const shiftData = getShiftOrPendingForEmployeeAndDate(employee._id, date);
-                            // IMPORTANT: Use the date from the current loop iteration, not a calculated one
                             const dateString = date.toISOString().split('T')[0];
-                            
-                            console.log(`Rendering cell for ${employee.firstName} on ${day} (${dateString})`); // Debug log
                             
                             return (
                               <div
@@ -1280,10 +1145,7 @@ export const ShiftManagementPage: React.FC = () => {
                                 )}
                                 onClick={() => handleEditShift(employee._id, dateString, shiftData?.shift)}
                                 onDragOver={handleDragOver}
-                                onDrop={(e) => {
-                                  console.log(`Dropping on ${day} for ${employee.firstName}, date: ${dateString}`); // Debug log
-                                  handleDrop(employee._id, dateString, e);
-                                }}
+                                onDrop={(e) => handleDrop(employee._id, dateString, e)}
                               >
                                 {shiftData ? (
                                   <div className={cn(
@@ -1292,7 +1154,6 @@ export const ShiftManagementPage: React.FC = () => {
                                       ? "bg-orange-200 text-orange-800" 
                                       : getShiftTypeInfo(shiftData.shift).color
                                   )}>
-                                    {/* Show pending indicator */}
                                     {shiftData.type === 'pending' && (
                                       <div className="absolute top-0 right-0 w-2 h-2 bg-orange-500 rounded-full"></div>
                                     )}
@@ -1307,7 +1168,6 @@ export const ShiftManagementPage: React.FC = () => {
                                       <div className="text-xs opacity-75">PENDING</div>
                                     )}
 
-                                    {/* Edit & Delete buttons for published shifts */}
                                     {shiftData.type === 'published' && (
                                       <div className="absolute top-1 right-1 flex space-x-1">
                                         <button
@@ -1555,7 +1415,7 @@ export const ShiftManagementPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Add Publish Controls Section */}
+      {/* Pending Assignments Section */}
       {Object.keys(pendingAssignments).length > 0 && (
         <Card className="mt-4 border-orange-200 bg-orange-50">
           <CardHeader className="pb-3">

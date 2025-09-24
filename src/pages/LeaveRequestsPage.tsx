@@ -166,14 +166,14 @@ export const LeaveRequestsPage: React.FC = () => {
 
   const getStatusBadge = (status: LeaveRequest['status']) => {
     const variants = {
-      pending: { variant: 'secondary' as const, icon: AlertCircle },
-      approved: { variant: 'default' as const, icon: CheckCircle },
-      rejected: { variant: 'destructive' as const, icon: XCircle }
+      pending: { className: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
+      approved: { className: 'bg-green-100 text-green-800', icon: CheckCircle },
+      rejected: { className: 'bg-red-100 text-red-800', icon: XCircle }
     };
     const config = variants[status];
     const Icon = config.icon;
     return (
-      <Badge variant={config.variant}>
+      <Badge className={config.className}>
         <Icon className="mr-1 h-3 w-3" />
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>

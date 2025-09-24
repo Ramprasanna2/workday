@@ -82,31 +82,6 @@ export const Navbar: React.FC = () => {
                   </NavigationMenuItem>
                   
                   <NavigationMenuItem>
-                    <NavigationMenuTrigger className="font-medium">Products</NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="w-64 p-2">
-                        <NavigationMenuLink asChild>
-                          <Link
-                            to="/products/workforce-management"
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground group"
-                          >
-                            <div className="text-sm font-medium leading-none group-hover:text-primary">Workforce Management</div>
-                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                              Complete employee management solution with advanced features
-                            </p>
-                          </Link>
-                        </NavigationMenuLink>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                  
-                  <NavigationMenuItem>
-                    <Link to="/about" className="text-muted-foreground hover:text-foreground px-3 py-2 text-sm font-medium rounded-md hover:bg-accent transition-colors">
-                      About
-                    </Link>
-                  </NavigationMenuItem>
-                  
-                  <NavigationMenuItem>
                     <Link to="/contact" className="text-muted-foreground hover:text-foreground px-3 py-2 text-sm font-medium rounded-md hover:bg-accent transition-colors">
                       Contact
                     </Link>
@@ -210,20 +185,6 @@ export const Navbar: React.FC = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Home
-              </Link>
-              <Link
-                to="/products/workforce-management"
-                className="text-muted-foreground hover:text-foreground block px-3 py-2 text-base font-medium rounded-md hover:bg-accent transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Products
-              </Link>
-              <Link
-                to="/about"
-                className="text-muted-foreground hover:text-foreground block px-3 py-2 text-base font-medium rounded-md hover:bg-accent transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                About
               </Link>
               <Link
                 to="/contact"

@@ -166,13 +166,14 @@ export const AttendancePage: React.FC = () => {
 
   const getStatusBadge = (status: AttendanceRecord['status']) => {
     const variants = {
-      present: 'default',
-      absent: 'destructive',
-      late: 'secondary',
-      'early-leave': 'outline'
+      present: 'bg-green-100 text-green-800',
+      absent: 'bg-red-100 text-red-800',
+      late: 'bg-yellow-100 text-yellow-800',
+      'early-leave': 'bg-orange-100 text-orange-800'
     } as const;
+    
     return (
-      <Badge variant={variants[status]}>
+      <Badge className={variants[status]}>
         {status.replace('-', ' ')}
       </Badge>
     );

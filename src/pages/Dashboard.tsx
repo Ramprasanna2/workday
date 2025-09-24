@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -16,8 +16,66 @@ import {
   Target
 } from 'lucide-react';
 
+// Interfaces for API data
+interface AttendanceRecord {
+  _id: string;
+  clockIn: string;
+  clockOut?: string;
+  totalHours: number;
+  overtimeHours?: number;
+  status: string;
+}
+
+interface Shift {
+  _id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status?: string;
+}
+
+interface LeaveRequest {
+  _id: string;
+  status: string;
+  days: number;
+  employeeId: { _id: string };
+}
+
+interface Goal {
+  _id: string;
+  title: string;
+  status: string;
+  createdAt: string;
+}
+
+interface Notification {
+  _id: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  type: string;
+}
+
+interface DashboardData {
+  attendance: AttendanceRecord[];
+  shifts: Shift[];
+  leaves: LeaveRequest[];
+  goals: Goal[];
+  notifications: Notification[];
+  payslips: any[];
+}
+
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    attendance: [],
+    shifts: [],
+    leaves: [],
+    goals: [],
+    notifications: [],
+    payslips: []
+  });
+  const [loading, setLoading] = useState(true);
 
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
@@ -25,30 +83,144 @@ export const Dashboard: React.FC = () => {
     return `${greeting}, ${user?.name}!`;
   };
 
-  const employeeStats = {
-    todayShift: { start: '09:00', end: '17:00', status: 'scheduled' },
-    leaveBalance: 12,
-    pendingRequests: 2,
-    thisWeekHours: 32,
-    activeGoals: 3,
-    completedGoals: 2,
+  // Custom hook for dashboard data fetching
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.employeeId) return;
+
+    try {
+      setLoading(true);
+      
+      const apiCalls = [
+        fetch(`http://localhost:5000/workDay/timeEntries/employee/${user.employeeId}`).catch(() => ({ json: () => [] })),
+        fetch(`http://localhost:5000/workDay/shifts/employee/${user.employeeId}`).catch(() => ({ json: () => [] })),
+        fetch(`http://localhost:5000/workDay/leaves`).catch(() => ({ json: () => [] })),
+        fetch(`http://localhost:5000/workDay/goals/assigned/${user.employeeId}`).catch(() => ({ json: () => [] })),
+        fetch(`http://localhost:5000/workDay/notifications/${user.employeeId}`).catch(() => ({ json: () => [] })),
+        fetch(`http://localhost:5000/workDay/payslips/employee/${user.employeeId}`).catch(() => ({ json: () => [] }))
+      ];
+
+      const responses = await Promise.all(apiCalls);
+      
+      const [
+        attendanceRes,
+        shiftsRes,
+        leavesRes,
+        goalsRes,
+        notificationsRes,
+        payslipsRes
+      ] = responses;
+
+      const data = await Promise.all([
+        attendanceRes.ok ? attendanceRes.json() : [],
+        shiftsRes.ok ? shiftsRes.json() : [],
+        leavesRes.ok ? leavesRes.json() : [],
+        goalsRes.ok ? goalsRes.json() : [],
+        notificationsRes.ok ? notificationsRes.json() : [],
+        payslipsRes.ok ? payslipsRes.json() : []
+      ]);
+
+      setDashboardData({
+        attendance: data[0] || [],
+        shifts: data[1] || [],
+        leaves: (data[2] || []).filter((leave: LeaveRequest) => 
+          leave.employeeId._id === user.employeeId
+        ),
+        goals: data[3] || [],
+        notifications: data[4] || [],
+        payslips: data[5] || []
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      // Set empty data on error
+      setDashboardData({
+        attendance: [],
+        shifts: [],
+        leaves: [],
+        goals: [],
+        notifications: [],
+        payslips: []
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.employeeId]);
+
+  useEffect(() => {
+    fetchDashboardData();
+    
+    // Set up real-time updates every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000);
+    
+    // Listen for custom events to refresh data
+    const handleRefresh = () => fetchDashboardData();
+    window.addEventListener('refreshClockInStatus', handleRefresh);
+    window.addEventListener('refreshLeaveRequestBadge', handleRefresh);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('refreshClockInStatus', handleRefresh);
+      window.removeEventListener('refreshLeaveRequestBadge', handleRefresh);
+    };
+  }, [fetchDashboardData]);
+
+  // Calculate metrics from real data
+  const calculateMetrics = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const thisWeek = getThisWeekRange();
+    
+    // Today's shift
+    const todayShift = dashboardData.shifts.find(shift => 
+      shift.date.split('T')[0] === today
+    );
+    
+    // Weekly hours
+    const weeklyHours = dashboardData.attendance
+      .filter(att => {
+        const attDate = new Date(att.clockIn);
+        return attDate >= thisWeek.start && attDate <= thisWeek.end;
+      })
+      .reduce((sum, att) => sum + att.totalHours, 0);
+    
+    // Leave balance (simplified - you might want to calculate this properly)
+    const leaveBalance = Math.max(0, 30 - dashboardData.leaves
+      .filter(leave => leave.status === 'approved')
+      .reduce((sum, leave) => sum + leave.days, 0));
+    
+    // Active goals
+    const activeGoals = dashboardData.goals.filter(goal => 
+      goal.status === 'Ongoing' || goal.status === 'Pending'
+    ).length;
+    
+    // Completed goals this quarter
+    const quarterStart = getQuarterStart();
+    const completedGoals = dashboardData.goals.filter(goal => 
+      goal.status === 'Completed' && new Date(goal.createdAt) >= quarterStart
+    ).length;
+
+    return {
+      todayShift,
+      weeklyHours: Math.round(weeklyHours * 100) / 100,
+      leaveBalance,
+      activeGoals,
+      completedGoals
+    };
   };
 
-  const managerStats = {
-    teamSize: 15,
-    pendingApprovals: 5,
-    todayAttendance: 12,
-    teamLeaveRequests: 3,
-    assignedGoals: 8,
-    completedGoals: 5,
+  // Helper functions
+  const getThisWeekRange = () => {
+    const now = new Date();
+    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+    const endOfWeek = new Date(now.setDate(startOfWeek.getDate() + 6));
+    return { start: startOfWeek, end: endOfWeek };
   };
 
-  const adminStats = {
-    totalEmployees: 156,
-    activeShifts: 45,
-    pendingApprovals: 12,
-    payrollDue: 3,
+  const getQuarterStart = () => {
+    const now = new Date();
+    const quarter = Math.floor(now.getMonth() / 3);
+    return new Date(now.getFullYear(), quarter * 3, 1);
   };
+
+  const metrics = calculateMetrics();
 
   const renderEmployeeDashboard = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -59,10 +231,15 @@ export const Dashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {employeeStats.todayShift.start} - {employeeStats.todayShift.end}
+            {loading ? '...' : metrics.todayShift ? 
+              `${metrics.todayShift.startTime} - ${metrics.todayShift.endTime}` : 
+              'No shift today'
+            }
           </div>
           <p className="text-xs text-muted-foreground">
-            <Badge variant="outline" className="mt-1">Scheduled</Badge>
+            <Badge variant="outline" className="mt-1">
+              {metrics.todayShift?.status || 'Unscheduled'}
+            </Badge>
           </p>
         </CardContent>
       </Card>
@@ -73,8 +250,12 @@ export const Dashboard: React.FC = () => {
           <Target className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{employeeStats.activeGoals}</div>
-          <p className="text-xs text-muted-foreground">{employeeStats.completedGoals} completed this quarter</p>
+          <div className="text-2xl font-bold">
+            {loading ? '...' : metrics.activeGoals}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {metrics.completedGoals} completed this quarter
+          </p>
         </CardContent>
       </Card>
 
@@ -84,7 +265,9 @@ export const Dashboard: React.FC = () => {
           <Calendar className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{employeeStats.leaveBalance} days</div>
+          <div className="text-2xl font-bold">
+            {loading ? '...' : `${metrics.leaveBalance} days`}
+          </div>
           <p className="text-xs text-muted-foreground">Available this year</p>
         </CardContent>
       </Card>
@@ -95,136 +278,102 @@ export const Dashboard: React.FC = () => {
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{employeeStats.thisWeekHours}h</div>
+          <div className="text-2xl font-bold">
+            {loading ? '...' : `${metrics.weeklyHours}h`}
+          </div>
           <p className="text-xs text-muted-foreground">Hours worked</p>
         </CardContent>
       </Card>
     </div>
   );
 
-  const renderManagerDashboard = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Team Size</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{managerStats.teamSize}</div>
-          <p className="text-xs text-muted-foreground">Direct reports</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Assigned Goals</CardTitle>
-          <Target className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{managerStats.assignedGoals}</div>
-          <p className="text-xs text-muted-foreground">{managerStats.completedGoals} completed</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
-          <CheckCircle className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{managerStats.todayAttendance}/{managerStats.teamSize}</div>
-          <p className="text-xs text-muted-foreground">Present today</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-          <AlertCircle className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{managerStats.pendingApprovals}</div>
-          <p className="text-xs text-muted-foreground">Require attention</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const renderAdminDashboard = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{adminStats.totalEmployees}</div>
-          <p className="text-xs text-muted-foreground">Active employees</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Shifts</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{adminStats.activeShifts}</div>
-          <p className="text-xs text-muted-foreground">Currently scheduled</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-          <AlertCircle className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{adminStats.pendingApprovals}</div>
-          <p className="text-xs text-muted-foreground">Across all departments</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Payroll Due</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{adminStats.payrollDue} days</div>
-          <p className="text-xs text-muted-foreground">Next processing</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
   const getQuickActions = () => {
-    switch (user?.role) {
-      case 'Employee':
-        return [
-          { label: 'Clock In/Out', href: '/dashboard/attendance', variant: 'default' as const },
-          { label: 'My Goals', href: '/dashboard/my-goals', variant: 'outline' as const },
-          { label: 'Request Leave', href: '/dashboard/leave-requests', variant: 'outline' as const },
-          { label: 'View Schedule', href: '/dashboard/shifts', variant: 'outline' as const },
-        ];
-      case 'Manager':
-        return [
-          { label: 'Assign Goals', href: '/dashboard/goals', variant: 'default' as const },
-          { label: 'Review Approvals', href: '/dashboard/approvals', variant: 'outline' as const },
-          { label: 'Team Attendance', href: '/dashboard/team-attendance', variant: 'outline' as const },
-          { label: 'View Reports', href: '/dashboard/reports', variant: 'outline' as const },
-        ];
-      case 'Admin':
-        return [
-          { label: 'Manage Employees', href: '/dashboard/employees', variant: 'default' as const },
-          { label: 'Goal Management', href: '/dashboard/goals', variant: 'outline' as const },
-          { label: 'Shift Management', href: '/dashboard/shift-management', variant: 'outline' as const },
-          { label: 'Process Payroll', href: '/dashboard/payroll', variant: 'outline' as const },
-        ];
-      default:
-        return [];
+    return [
+      { label: 'My Shifts', href: '/dashboard/shifts', variant: 'default' as const },
+      { label: 'My Goals', href: '/dashboard/my-goals', variant: 'outline' as const },
+      { label: 'Attendance', href: '/dashboard/attendance', variant: 'outline' as const },
+      { label: 'Notifications', href: '/dashboard/notifications', variant: 'outline' as const },
+    ];
+  };
+
+  // Generate recent activity from real data
+  const getRecentActivity = () => {
+    const activities = [];
+    
+    // Add recent goals
+    dashboardData.goals
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 2)
+      .forEach(goal => {
+        activities.push({
+          icon: Target,
+          color: 'text-blue-500',
+          message: `Goal assigned: ${goal.title}`,
+          timestamp: getRelativeTime(goal.createdAt)
+        });
+      });
+
+    // Add recent notifications
+    dashboardData.notifications
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 2)
+      .forEach(notification => {
+        activities.push({
+          icon: getNotificationIcon(notification.type),
+          color: getNotificationColor(notification.type),
+          message: notification.message,
+          timestamp: getRelativeTime(notification.createdAt)
+        });
+      });
+
+    // Add recent leaves
+    const recentLeave = dashboardData.leaves
+      .sort((a, b) => new Date(b._id).getTime() - new Date(a._id).getTime())[0];
+    
+    if (recentLeave) {
+      activities.push({
+        icon: CheckCircle,
+        color: recentLeave.status === 'approved' ? 'text-green-500' : 'text-yellow-500',
+        message: `Leave request ${recentLeave.status}`,
+        timestamp: 'Recently'
+      });
+    }
+
+    return activities.slice(0, 4);
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'goal': return Target;
+      case 'leave': return Calendar;
+      case 'shift': return Clock;
+      case 'payroll': return FileText;
+      default: return AlertCircle;
     }
   };
+
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case 'goal': return 'text-blue-500';
+      case 'leave': return 'text-green-500';
+      case 'shift': return 'text-yellow-500';
+      case 'payroll': return 'text-purple-500';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  };
+
+  const recentActivities = getRecentActivity();
 
   return (
     <div className="space-y-8">
@@ -237,9 +386,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      {user?.role === 'Employee' && renderEmployeeDashboard()}
-      {user?.role === 'Manager' && renderManagerDashboard()}
-      {user?.role === 'Admin' && renderAdminDashboard()}
+      {renderEmployeeDashboard()}
 
       {/* Quick Actions */}
       <Card>
@@ -272,45 +419,24 @@ export const Dashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {user?.role === 'Employee' && (
-              <div className="flex items-center space-x-3">
-                <Target className="h-5 w-5 text-blue-500" />
-                <div>
-                  <p className="text-sm font-medium">New goal assigned: Complete React Training Module</p>
-                  <p className="text-xs text-muted-foreground">1 hour ago</p>
-                </div>
-              </div>
+            {loading ? (
+              <div className="text-center text-muted-foreground">Loading activities...</div>
+            ) : recentActivities.length > 0 ? (
+              recentActivities.map((activity, index) => {
+                const Icon = activity.icon;
+                return (
+                  <div key={index} className="flex items-center space-x-3">
+                    <Icon className={`h-5 w-5 ${activity.color}`} />
+                    <div>
+                      <p className="text-sm font-medium">{activity.message}</p>
+                      <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center text-muted-foreground">No recent activities</div>
             )}
-            {user?.role === 'Manager' && (
-              <div className="flex items-center space-x-3">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <div>
-                  <p className="text-sm font-medium">John Smith completed their mentorship goal</p>
-                  <p className="text-xs text-muted-foreground">30 minutes ago</p>
-                </div>
-              </div>
-            )}
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              <div>
-                <p className="text-sm font-medium">Your leave request has been approved</p>
-                <p className="text-xs text-muted-foreground">2 hours ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <AlertCircle className="h-5 w-5 text-yellow-500" />
-              <div>
-                <p className="text-sm font-medium">New shift assignment available</p>
-                <p className="text-xs text-muted-foreground">1 day ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <FileText className="h-5 w-5 text-blue-500" />
-              <div>
-                <p className="text-sm font-medium">Monthly payslip generated</p>
-                <p className="text-xs text-muted-foreground">3 days ago</p>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
