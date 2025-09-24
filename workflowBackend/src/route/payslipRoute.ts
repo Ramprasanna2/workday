@@ -30,3 +30,6 @@ router.get('/:payslipId', getPayslipById);
 
 // Delete a payslip by ID
 export default router;
+// src/route/payslipRoute.ts
+import { generatePayrollForAll } from '../service/payslipService';
+router.post('/generate-all', generatePayrollForAll);

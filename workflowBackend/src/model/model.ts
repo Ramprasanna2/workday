@@ -398,7 +398,13 @@ const CheckinSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // 8. Payslip Schema
+// Update the PayslipSchema in model.ts
 const PayslipSchema = new mongoose.Schema({
+  payslipNumber: {
+    type: String,
+    unique: true,
+    required: true
+  },
   employeeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',
@@ -410,67 +416,31 @@ const PayslipSchema = new mongoose.Schema({
     ref: 'Department',
     required: false
   },
-  payPeriodStart: {
-    type: Date,
-    required: true
-  },
-  payPeriodEnd: {
-    type: Date,
-    required: true
-  },
-  regularHours: {
-    type: Number,
-    required: true,
-    default: 0
-  },
-  overtimeHours: {
-    type: Number,
-    required: true,
-    default: 0
-  },
-  wage: {
-    type: Number,
-    required: true
-  },
-  overtimeRate: {
-    type: Number,
-    required: true,
-    default: 1.5
-  },
-  grossPay: {
-    type: Number,
-    required: true
-  },
+  payPeriodStart: { type: Date, required: true },
+  payPeriodEnd: { type: Date, required: true },
+  regularHours: { type: Number, required: true, default: 0 },
+  overtimeHours: { type: Number, required: true, default: 0 },
+  wage: { type: Number, required: true },
+  overtimeRate: { type: Number, required: true, default: 1.5 },
+  grossPay: { type: Number, required: true },
   deductions: {
     tax: { type: Number, default: 0 },
-    socialSecurity: { type: Number, default: 0 },
-    medicare: { type: Number, default: 0 },
-    insurance: { type: Number, default: 0 },
-    retirement: { type: Number, default: 0 }
+    pf: { type: Number, default: 0 }, // Provident Fund
+    professionalTax: { type: Number, default: 0 },
+    hra: { type: Number, default: 0 }, // House Rent Allowance
+    medicalAllowance: { type: Number, default: 0 },
+    specialAllowance: { type: Number, default: 0 },
   },
-  netPay: {
-    type: Number,
-    required: true
-  },
-  finalBill: {
-    type: Number,
-    required: true
-  },
+  netPay: { type: Number, required: true },
+  finalBill: { type: Number, required: true },
   status: {
     type: String,
     enum: ['draft', 'pending', 'approved', 'paid'],
     default: 'draft'
   },
-  notes: {
-    type: String
-  }
+  notes: { type: String }
 }, { timestamps: true });
 
-// Index to prevent overlapping payslips for same employee and period
-PayslipSchema.index(
-  { employeeId: 1, payPeriodStart: 1, payPeriodEnd: 1 },
-  { unique: true }
-);
 
 // 9. Notification Schema
 export interface INotification extends Document {

@@ -4,13 +4,12 @@ import { TimeEntry } from '../model/model';
 
 // Get time entries by employee and date
 export const getTimeEntriesByDate = async (employeeId: string, date: string) => {
-  console.log('Service: Getting time entries for employee:', employeeId, 'date:', date);
+ 
   
   // Create date range for the specific date
   const startDate = new Date(date + 'T00:00:00.000Z');
   const endDate = new Date(date + 'T23:59:59.999Z');
-  
-  console.log('Date range:', startDate, 'to', endDate);
+
   
   const entries = await TimeEntry.find({
     employeeId: new mongoose.Types.ObjectId(employeeId),
@@ -20,7 +19,7 @@ export const getTimeEntriesByDate = async (employeeId: string, date: string) => 
     }
   }).sort({ clockIn: -1 });
   
-  console.log('Found time entries:', entries);
+
   return entries;
 };
 

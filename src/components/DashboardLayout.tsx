@@ -597,7 +597,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         roles: ['Manager', 'Admin'],
         pendingCount: pendingApprovalsCount // Add pending approvals count
       },
-      { href: '/dashboard/payroll', label: 'Payroll', icon: DollarSign, roles: ['Manager', 'Admin'] },
+      { href: '/dashboard/payroll', label: 'Payroll', icon: DollarSign, roles: ['Admin','Employee','Manager'] },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['Manager', 'Admin'] },
       { href: '/dashboard/shift-management', label: 'Shift Management', icon: Calendar, roles: ['Manager', 'Admin'] },
        { href: '/dashboard/payslips', label: 'Payslips', icon: Calendar, roles: ['Manager', 'Admin'] },
