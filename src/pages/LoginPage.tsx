@@ -28,8 +28,7 @@ export const LoginPage: React.FC = () => {
       console.log(user,"user")
       const success = await login(email, password);
       if (success) {
-        console.log("naviagate to dashboard")
-        navigate('/dashboard');
+                navigate('/dashboard');
       } else {
         setError('Invalid email or password');
       }
@@ -41,9 +40,9 @@ export const LoginPage: React.FC = () => {
   };
 
   const demoAccounts = [
-    { email: 'abc1@gmail.com', role: 'Admin', password: 'password' },
-    { email: 'abc2@gmail.com', role: 'Manager', password: 'password' },
-    { email: 'abc3@gmail.com', role: 'Employee', password: 'password' },
+    { email: 'abc@gmail.com', role: 'Admin', password: 'password' },
+    { email: 'abc1@gmail.com', role: 'Manager', password: 'password' },
+    { email: 'abc2@gmail.com', role: 'Employee', password: 'password' },
   ];
 
   const handleDemoLogin = (demoEmail: string) => {

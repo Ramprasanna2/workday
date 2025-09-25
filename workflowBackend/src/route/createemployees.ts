@@ -32,6 +32,16 @@ router.get('/all', async (req, res) => {
   }
 });
 
+// Get all employees (alias for easier access)
+router.get('/', async (req, res) => {
+  try {
+    const employees = await getAllEmployees();
+    res.json(employees);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get employees with filters
 router.get('/filtered', async (req, res) => {
   try {

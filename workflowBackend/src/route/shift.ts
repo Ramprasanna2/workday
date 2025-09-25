@@ -27,9 +27,29 @@ router.post('/deleting/:id', async (req, res) => {
   }
 });
 
-router.get("/",(req,res)=>{
-  res.send("hello");
+// Get all shifts (alias for root route)
+router.get("/", async (req, res) => {
+  try {
+    const shifts = await Shift.find()
+      .populate('employeeId', 'firstName lastName email')
+      .sort({ startTime: -1 });
+    res.json(shifts);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 })
+
+// Get all shifts
+router.get('/all', async (req, res) => {
+  try {
+    const shifts = await Shift.find()
+      .populate('employeeId', 'firstName lastName email')
+      .sort({ startTime: -1 });
+    res.json(shifts);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Create a shift
 router.post('/', async (req, res) => {

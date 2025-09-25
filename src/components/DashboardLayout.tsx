@@ -530,14 +530,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       .slice(0, 2);
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'Admin': return 'bg-red-100 text-red-800';
-      case 'Manager': return 'bg-blue-100 text-blue-800';
-      case 'Employee': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  
 
   const getMenuItems = () => {
     const baseItems = [
@@ -597,7 +590,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         roles: ['Manager', 'Admin'],
         pendingCount: pendingApprovalsCount // Add pending approvals count
       },
-      { href: '/dashboard/payroll', label: 'Payroll', icon: DollarSign, roles: ['Manager', 'Admin'] },
+      { href: '/dashboard/payroll', label: 'Payroll', icon: DollarSign, roles: ['Admin'] },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['Manager', 'Admin'] },
       { href: '/dashboard/shift-management', label: 'Shift Management', icon: Calendar, roles: ['Manager', 'Admin'] },
        { href: '/dashboard/payslips', label: 'Payslips', icon: Calendar, roles: ['Manager', 'Admin'] },
@@ -691,9 +684,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user?.name}
               </p>
-              <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-medium ${getRoleBadgeColor(user?.role || '')}`}>
-                {user?.role}
-              </span>
+              
             </div>
           </div>
         </div>

@@ -1,5 +1,24 @@
-import { Employee, Shift, TimeEntry, Payslip } from "../model/model";
-import mongoose from "mongoose";
+import { Employee, Shift, TimeEntry, Payslip } from '../model/model';
+import mongoose from 'mongoose';
+
+// Function to generate unique payslip number
+export const generatePayslipNumber = async (): Promise<string> => {
+  const year = new Date().getFullYear();
+  const month = String(new Date().getMonth() + 1).padStart(2, '0');
+  
+  // Find the last payslip number for this month/year
+  const lastPayslip = await Payslip.findOne({
+    payslipNumber: { $regex: `^PS${year}${month}` }
+  }).sort({ payslipNumber: -1 });
+  
+  let sequence = 1;
+  if (lastPayslip && lastPayslip.payslipNumber) {
+    const lastSequence = parseInt(lastPayslip.payslipNumber.slice(-4));
+    sequence = lastSequence + 1;
+  }
+  
+  return `PS${year}${month}${String(sequence).padStart(4, '0')}`;
+};
 
 interface Deductions {
   tax?: number;
@@ -9,7 +28,7 @@ interface Deductions {
   retirement?: number;
 }
 
-const calculatePay = async ({
+export const calculatePay = async ({
   employeeId,
   payPeriodStart,
   payPeriodEnd,
@@ -136,8 +155,11 @@ export const createPayslip = async (req: any, res: any) => {
 
     const result = await calculatePay(data);
 
+    const payslipNumber = await generatePayslipNumber();
+
     const payslip = new Payslip({
       employeeId: new mongoose.Types.ObjectId(data.employeeId),
+      payslipNumber: payslipNumber,
       payPeriodStart: data.payPeriodStart,
       payPeriodEnd: data.payPeriodEnd,
       wage: result.wageAmount,

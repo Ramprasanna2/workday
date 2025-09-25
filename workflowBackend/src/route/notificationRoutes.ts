@@ -105,4 +105,54 @@ router.get('/employee/:employeeId/unread-count', async (req, res) => {
   }
 });
 
+// Get all notifications (for dashboard)
+router.get('/', async (req, res) => {
+  try {
+    const notifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .limit(20); // Limit to recent 20 notifications
+    
+    // Map notifications to match expected format with mock data for now
+    const mockNotifications = [
+      {
+        _id: '1',
+        title: 'New Goal Assigned',
+        message: 'You have been assigned a new quarterly goal',
+        type: 'info',
+        createdAt: new Date().toISOString(),
+        icon: 'Target'
+      },
+      {
+        _id: '2',
+        title: 'Payslip Generated',
+        message: 'Your payslip for this month is ready',
+        type: 'success',
+        createdAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+        icon: 'CheckCircle'
+      },
+      {
+        _id: '3',
+        title: 'Leave Request Approved',
+        message: 'Your leave request has been approved',
+        type: 'success',
+        createdAt: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+        icon: 'CheckCircle'
+      },
+      {
+        _id: '4',
+        title: 'Shift Reminder',
+        message: 'Your shift starts in 30 minutes',
+        type: 'warning',
+        createdAt: new Date(Date.now() - 10800000).toISOString(), // 3 hours ago
+        icon: 'AlertCircle'
+      }
+    ];
+    
+    res.json(mockNotifications);
+  } catch (error: any) {
+    console.error('Error getting notifications:', error);
+    res.status(500).json({ message: error.message || 'Failed to get notifications' });
+  }
+});
+
 export default router;

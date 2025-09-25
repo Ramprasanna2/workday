@@ -42,18 +42,31 @@ import {
   DialogTrigger,
 } from '../components/ui/dialog';
 
+// Updated interface for Indian payroll
 interface Employee {
   _id: string;
   firstName: string;
   lastName: string;
   jobInfo: {
     departmentId: {
+      _id: string;
       name: string;
     };
     positionId: {
       title: string;
     };
   };
+}
+
+interface IndianDeductions {
+  tax: number;
+  pf: number;
+  professionalTax: number;
+  hra: number;
+  medicalAllowance: number;
+  specialAllowance: number;
+  insurance?: number;
+  retirement?: number;
 }
 
 interface EmployeePayroll {
@@ -69,13 +82,7 @@ interface EmployeePayroll {
   wage: number;
   overtimeRate: number;
   grossPay: number;
-  deductions: {
-    tax: number;
-    socialSecurity: number;
-    medicare: number;
-    insurance: number;
-    retirement: number;
-  };
+  deductions: IndianDeductions;
   netPay: number;
   finalBill: number;
   status: 'draft' | 'pending' | 'approved' | 'paid' | 'rejected';
@@ -101,14 +108,14 @@ const getStatusColor = (status: string) => {
 };
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
   }).format(amount);
 };
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString();
+  return new Date(dateString).toLocaleDateString('en-IN');
 };
 
 const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
@@ -199,25 +206,41 @@ const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
             </TableHeader>
             <TableBody>
               <TableRow>
-                <TableCell>Federal Tax</TableCell>
+                <TableCell>Income Tax</TableCell>
                 <TableCell className="text-right">-{formatCurrency(payroll.deductions.tax)}</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell>Social Security</TableCell>
-                <TableCell className="text-right">-{formatCurrency(payroll.deductions.socialSecurity)}</TableCell>
+                <TableCell>Provident Fund (PF)</TableCell>
+                <TableCell className="text-right">-{formatCurrency(payroll.deductions.pf)}</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell>Medicare</TableCell>
-                <TableCell className="text-right">-{formatCurrency(payroll.deductions.medicare)}</TableCell>
+                <TableCell>Professional Tax</TableCell>
+                <TableCell className="text-right">-{formatCurrency(payroll.deductions.professionalTax)}</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell>Health Insurance</TableCell>
-                <TableCell className="text-right">-{formatCurrency(payroll.deductions.insurance)}</TableCell>
+                <TableCell>House Rent Allowance (HRA)</TableCell>
+                <TableCell className="text-right">-{formatCurrency(payroll.deductions.hra)}</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell>401(k) Retirement</TableCell>
-                <TableCell className="text-right">-{formatCurrency(payroll.deductions.retirement)}</TableCell>
+                <TableCell>Medical Allowance</TableCell>
+                <TableCell className="text-right">-{formatCurrency(payroll.deductions.medicalAllowance)}</TableCell>
               </TableRow>
+              <TableRow>
+                <TableCell>Special Allowance</TableCell>
+                <TableCell className="text-right">-{formatCurrency(payroll.deductions.specialAllowance)}</TableCell>
+              </TableRow>
+              {payroll.deductions.insurance && (
+                <TableRow>
+                  <TableCell>Insurance</TableCell>
+                  <TableCell className="text-right">-{formatCurrency(payroll.deductions.insurance)}</TableCell>
+                </TableRow>
+              )}
+              {payroll.deductions.retirement && (
+                <TableRow>
+                  <TableCell>Retirement</TableCell>
+                  <TableCell className="text-right">-{formatCurrency(payroll.deductions.retirement)}</TableCell>
+                </TableRow>
+              )}
               <TableRow className="font-medium bg-muted/50">
                 <TableCell>Total Deductions</TableCell>
                 <TableCell className="text-right">
@@ -249,6 +272,7 @@ const PayrollDetailDialog = ({ payroll }: { payroll: EmployeePayroll }) => {
 export const PayrollPage = () => {
   const [payrollData, setPayrollData] = useState<EmployeePayroll[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -263,6 +287,13 @@ export const PayrollPage = () => {
         ]);
         const payrollData = await payrollRes.json();
         const employeesData = await employeesRes.json();
+
+        // Extract unique departments
+        const uniqueDepartments = Array.from(
+          new Set(employeesData.map((emp: Employee) => emp.jobInfo.departmentId.name))
+        );
+        setDepartments(uniqueDepartments);
+
         const enrichedPayrollData = payrollData.map((payroll: EmployeePayroll) => {
           const employee = employeesData.find((emp: Employee) => emp._id === payroll.employeeId);
           return {
@@ -320,7 +351,46 @@ export const PayrollPage = () => {
     }
   };
 
-  // Export to CSV
+  const handleGeneratePayroll = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/workDay/payslips/generate-all', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          payPeriodStart: new Date(new Date().setDate(1)).toISOString(),
+          payPeriodEnd: new Date().toISOString(),
+        }),
+      });
+      if (response.ok) {
+        alert('Payroll generated successfully!');
+        // Refresh data
+        const [payrollRes, employeesRes] = await Promise.all([
+          fetch('http://localhost:5000/workDay/payslips'),
+          fetch('http://localhost:5000/workDay/employees/all'),
+        ]);
+        const payrollData = await payrollRes.json();
+        const employeesData = await employeesRes.json();
+        const enrichedPayrollData = payrollData.map((payroll: EmployeePayroll) => {
+          const employee = employeesData.find((emp: Employee) => emp._id === payroll.employeeId);
+          return {
+            ...payroll,
+            employeeName: employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown',
+            department: employee ? employee.jobInfo.departmentId.name : 'Unknown',
+            position: employee ? employee.jobInfo.positionId.title : 'Unknown',
+          };
+        });
+        setPayrollData(enrichedPayrollData);
+      } else {
+        alert('Failed to generate payroll');
+      }
+    } catch (error) {
+      console.error('Error generating payroll:', error);
+      alert('Error generating payroll');
+    }
+  };
+
   const exportToCSV = () => {
     const headers = [
       'Employee ID',
@@ -336,7 +406,6 @@ export const PayrollPage = () => {
       'Final Bill',
       'Status',
     ];
-
     const csvRows = filteredPayroll.map((payroll) => [
       payroll.employeeId,
       payroll.employeeName,
@@ -351,12 +420,10 @@ export const PayrollPage = () => {
       formatCurrency(payroll.finalBill),
       payroll.status,
     ]);
-
     const csvContent = [
       headers.join(','),
       ...csvRows.map((row) => row.join(',')),
     ].join('\n');
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -382,7 +449,9 @@ export const PayrollPage = () => {
             <Download className="h-4 w-4 mr-2" />
             Export Payroll
           </Button>
-          <Button>Process Payroll</Button>
+          <Button onClick={handleGeneratePayroll}>
+            Generate Payroll
+          </Button>
         </div>
       </div>
       {/* Summary Cards */}
@@ -465,7 +534,11 @@ export const PayrollPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="IT">IT</SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept} value={dept}>
+                    {dept}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

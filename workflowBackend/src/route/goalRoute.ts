@@ -25,11 +25,14 @@ router.get('/assigned/:managerId', getAssignedGoals);
 // Delete a goal
 router.delete('/:goalId', deleteGoal);
 
-// Add this route if it doesn't exist
-router.get('/employee/:employeeId', async (req, res) => {
+// Get all goals (for reports)
+router.get('/all', async (req, res) => {
   try {
-    const { employeeId } = req.params;
-    const goals = await getGoalsByEmployee(employeeId);
+    const { Goal } = await import('../model/model');
+    const goals = await Goal.find()
+      .populate('employeeId', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email')
+      .sort({ createdAt: -1 });
     res.json(goals);
   } catch (err: any) {
     res.status(400).json({ error: err.message });

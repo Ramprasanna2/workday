@@ -405,6 +405,11 @@ const PayslipSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  payslipNumber: {
+    type: String,
+    unique: true,
+    required: true
+  },
   department: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department',

@@ -42,8 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.ok) {
         const data = await res.json();
-        console.log(data.user)
-        setUser(data.user);
+         setUser(data.user);
         localStorage.setItem("user", JSON.stringify(data.user));
       } else {
         // Session/JWT invalid → clear everything
@@ -68,11 +67,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ email, password }),
       credentials: "include", // 👈 needed for session cookie
     }); 
-    console.log("login method is called")
+    
     if (!res.ok) return false;
 
     const data = await res.json();
-    console.log(data)
+ 
     // Save user in state & localStorage
     setUser(data.user);
     localStorage.setItem("user", JSON.stringify(data.user));

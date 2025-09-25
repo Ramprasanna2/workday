@@ -48,4 +48,15 @@ router.get('/employee/:employeeId', async (req, res) => {
   }
 });
 
+// Get all time entries (for reports)
+router.get('/all', async (req, res) => {
+  try {
+    const { getAllTimeEntries } = await import('../service/timeEntryService');
+    const entries = await getAllTimeEntries();
+    res.json(entries);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 export default router;
