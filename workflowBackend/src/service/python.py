@@ -11,7 +11,7 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Configure Gemini API
-genai.configure(api_key="AIzaSyAhGXl6-QjZCKh3tvKnkG0TEI-7MoIybt0")
+genai.configure(api_key="")
 
 def get_direct_pdf_url(url):
     """Convert Google Drive URL to direct download link if needed."""
